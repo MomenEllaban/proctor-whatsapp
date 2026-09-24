@@ -1,0 +1,44 @@
+import { NextResponse } from "next/server";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { env, isDemo } from "@/lib/env";
+import { demoLogin } from "@/lib/data";
+import { authPolicyError } from "@/lib/env";
+import { rateLimit } from "@/lib/rate-limit";
+
+export async function POST(req: Request) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const limit = rateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: `محاولات كثيرة. حاول مرة أخرى بعد ${limit.retryAfterSeconds} ثانية.` },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+    );
+  }
+  const { email, password } = await req.json().catch(() => ({}));
+  if (!email || !password) {
+    return NextResponse.json({ error: "أدخل البريد الإلكتروني وكلمة المرور" }, { status: 400 });
+  }
+
+  // In domain mode login is also restricted to the company domain.
+  if (env.signupMode === "domain" && env.allowedEmailDomains.length) {
+    const policy = authPolicyError(email, "");
+    if (policy) {
+      return NextResponse.json({ error: policy }, { status: 403 });
+    }
+  }
+
+  if (isDemo) {
+    const user = await demoLogin(email, password);
+    if (!user) {
+      return NextResponse.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
+    }
+    return NextResponse.json({ ok: true, user });
+  }
+
+  const supabase = createServerSupabase();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    return NextResponse.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
+  }
+  return NextResponse.json({ ok: true });
+}

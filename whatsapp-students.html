@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<!-- Legacy standalone prototype. The maintained application is the Next.js app in src/. -->
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EST1 - إرسال رسائل WhatsApp للطلاب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;--bg:#f0f4f2;--card:#fff;--ink:#12261f;--muted:#5b6f66;--line:#dfe8e3;
+  --green:#0f8074;--green-d:#0b6b60;--wa:#25d366;--tint:#e7f7ee;--bubble:#dcf8c6;--head:#075e54;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){color-scheme:dark;--bg:#0d1714;--card:#15211d;--ink:#e8f1ed;--muted:#a7bcb4;--line:#25362f;--green:#0a7165;--green-d:#35bda9;--tint:#16352a;--bubble:#1e4a36;--head:#0a3d36}
+}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0d1714;--card:#15211d;--ink:#e8f1ed;--muted:#a7bcb4;--line:#25362f;--green:#0a7165;--green-d:#35bda9;--tint:#16352a;--bubble:#1e4a36;--head:#0a3d36}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Cairo',Tahoma,'Segoe UI',Arial,sans-serif;line-height:1.7}
+header{background:var(--head);color:#fff;padding:28px 16px 64px}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header .wrap{padding:0}
+h1{margin:0;font-size:clamp(1.15rem,3.6vw,1.7rem);font-weight:800;direction:ltr;text-align:right;line-height:1.4}
+.sub{margin:6px 0 2px;font-size:1.15rem;font-weight:700;color:#b9f3d0}
+.desc{margin:0;opacity:.85;font-size:.95rem}
+main{margin-top:-40px;padding-bottom:40px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.stat span{color:var(--muted);font-weight:600;font-size:.95rem}
+.stat b{font-size:1.8rem;font-weight:800;color:var(--green);line-height:1}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+.card h2{margin:0 0 12px;font-size:1.1rem;font-weight:800}
+.bubble{background:var(--bubble);border-radius:12px;border-top-right-radius:2px;padding:14px 16px;white-space:pre-wrap;word-break:break-word;font-size:.98rem;line-height:1.85}
+.bubble .ph{background:var(--card);color:var(--green);border-radius:6px;padding:0 6px;font-weight:700}
+.bubble a{color:var(--green);word-break:break-all;direction:ltr;unicode-bidi:isolate}
+.note{margin:10px 0 0;color:var(--muted);font-size:.85rem}
+.tools{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.tools h2{margin:0}
+.search{position:relative;flex:1 1 260px;max-width:420px}
+.search input{width:100%;font:inherit;padding:10px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.search input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 25%,transparent)}
+.count{color:var(--muted);font-size:.85rem;margin:0 0 8px}
+table{width:100%;max-width:100%;border-collapse:collapse}
+th{background:var(--tint);color:var(--green-d);text-align:right;padding:10px 12px;font-weight:700;font-size:.9rem}
+:root:not([data-theme="light"]) th{color:var(--ink)}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:hover{background:color-mix(in srgb,var(--tint) 55%,transparent)}
+.idx{color:var(--muted);width:44px}
+.name{font-weight:700;overflow-wrap:anywhere}
+.phone{direction:ltr;unicode-bidi:isolate;display:inline-block;font-variant-numeric:tabular-nums;letter-spacing:.3px;color:var(--muted)}
+.badge{display:inline-block;margin-inline-start:8px;font-size:.75rem;font-weight:700;color:var(--green-d);background:var(--tint);border-radius:20px;padding:0 8px;vertical-align:middle}
+:root:not([data-theme="light"]) .badge{color:var(--wa)}
+.act{width:190px}
+.wa{font:inherit;font-weight:700;cursor:pointer;border:0;color:#fff;background:var(--green);border-radius:10px;padding:9px 16px;min-height:44px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,transform .1s}
+.wa:hover{background:var(--green-d)}
+.wa:active{transform:scale(.97)}
+.wa:focus-visible{outline:3px solid var(--wa);outline-offset:2px}
+.wa.done{background:var(--wa);color:#053b1f}
+.wa svg{width:20px;height:20px;fill:currentColor;flex:none}
+.empty{text-align:center;color:var(--muted);padding:28px 0}
+footer{text-align:center;color:var(--muted);font-size:.85rem;padding:0 16px 24px}
+@media (max-width:700px){
+  header{padding-bottom:56px}
+  .stats{gap:8px}.stat{padding:12px 14px}
+  thead{display:none}
+  table,tbody{display:block}
+  tbody tr{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:14px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+  td{display:block;padding:0;border:0}
+  .idx{grid-row:1/3;width:auto;align-self:center;font-weight:800;color:var(--green);font-size:1.05rem}
+  .phone{font-size:.95rem}
+  .act{grid-column:1/-1;width:auto;margin-top:10px}
+  tbody tr:hover{background:var(--bg)}
+}
+@media (max-width:360px){.stats{grid-template-columns:1fr}.stat{padding:12px 14px}.wrap{padding-left:12px;padding-right:12px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>EST1 - Horus University - Faculty of Engineering</h1>
+    <p class="sub">إرسال رسائل WhatsApp للطلاب</p>
+    <p class="desc">اختر الطالب لفتح WhatsApp Web والرسالة جاهزة للإرسال.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="stats" aria-label="إحصائيات">
+    <div class="stat"><span>إجمالي الطلاب</span><b id="total">17</b></div>
+    <div class="stat"><span>تم فتح WhatsApp</span><b id="opened">0</b></div>
+  </section>
+
+  <section class="card" aria-labelledby="pv">
+    <h2 id="pv">معاينة الرسالة</h2>
+    <div class="bubble" id="preview"></div>
+    <p class="note">سيتم استبدال «اسم الطالب» باسم كل طالب. الإرسال يتم يدويًا بالضغط على زر Send داخل WhatsApp.</p>
+  </section>
+
+  <section class="card" aria-labelledby="tb">
+    <div class="tools">
+      <h2 id="tb">قائمة الطلاب</h2>
+      <div class="search"><input id="q" type="search" placeholder="🔎 البحث عن طالب..." aria-label="البحث عن طالب بالاسم أو رقم الموبايل" autocomplete="off"></div>
+    </div>
+    <p class="count" id="count" aria-live="polite"></p>
+    <table>
+      <thead><tr><th>#</th><th>الاسم</th><th>رقم الموبايل</th><th>الإجراء</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>لا يوجد طالب مطابق للبحث. جرّب اسمًا أو رقمًا آخر.</div>
+  </section>
+</main>
+<footer>يفتح هذا الموقع WhatsApp (تطبيق الموبايل أو WhatsApp Web) والرسالة مكتوبة مسبقًا، ولا يرسل أي رسالة تلقائيًا.</footer>
+
+<script>
+/* ---------- data/students.js ---------- */
+// Fictional demo records only — never put real names, phone numbers, or invite links here.
+const students = [
+  { name: "طالب تجريبي 01", phone: "201000000001" },
+  { name: "طالب تجريبي 02", phone: "201000000002" },
+  { name: "طالب تجريبي 03", phone: "201000000003" },
+  { name: "طالب تجريبي 04", phone: "201000000004" },
+  { name: "طالب تجريبي 05", phone: "201000000005" },
+  { name: "طالب تجريبي 06", phone: "201000000006" },
+  { name: "طالب تجريبي 07", phone: "201000000007" },
+  { name: "طالب تجريبي 08", phone: "201000000008" },
+  { name: "طالب تجريبي 09", phone: "201000000009" },
+  { name: "طالب تجريبي 10", phone: "201000000010" },
+  { name: "طالب تجريبي 11", phone: "201000000011" },
+  { name: "طالب تجريبي 12", phone: "201000000012" },
+  { name: "طالب تجريبي 13", phone: "201000000013" },
+  { name: "طالب تجريبي 14", phone: "201000000014" },
+  { name: "طالب تجريبي 15", phone: "201000000015" },
+  { name: "طالب تجريبي 16", phone: "201000000016" },
+  { name: "طالب تجريبي 17", phone: "201000000017" }
+];
+
+/* ---------- message + WhatsApp logic ---------- */
+function generateWhatsAppMessage(name) {
+  return `السلام عليكم ورحمة الله وبركاته، أهلاً ${name}
+
+ده الجروب الخاص بامتحان EST1 - Horus University - Faculty of Engineering.
+
+📌 رابط الجروب: https://example.com/demo-invite
+
+🗓 موعد الامتحان: يوم الجمعة الموافق 9 أكتوبر 2026
+
+🔔 يرجى تأكيد الحضور بكتابة الاسم الثنائي داخل الجروب.
+
+مع تمنياتنا بالتوفيق، وكل سنة وأنتم طيبين 🌷`;
+}
+
+function isMobileDevice() {
+  const ua = navigator.userAgent || "";
+  return /Android|iPhone|iPad|iPod|Mobi/i.test(ua) ||
+    (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
+
+function openWhatsApp(name, phone) {
+  const message = generateWhatsAppMessage(name);
+  const text = encodeURIComponent(message);
+  // الموبايل: رابط wa.me الرسمي يفتح تطبيق WhatsApp مباشرة
+  // الكمبيوتر: WhatsApp Web
+  const whatsappUrl = isMobileDevice()
+    ? `https://wa.me/${phone}?text=${text}`
+    : `https://web.whatsapp.com/send?phone=${phone}&text=${text}`;
+  const w = window.open(whatsappUrl, "_blank");
+  if (!w) window.location.href = whatsappUrl; // لو المتصفح منع النافذة الجديدة
+}
+
+/* ---------- UI ---------- */
+const WA_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.67c2.2 0 4.26.86 5.82 2.42a8.2 8.2 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.26-8.24zM8.53 7.33c-.16 0-.43.06-.66.31-.22.25-.87.85-.87 2.07s.89 2.4 1.01 2.56c.12.17 1.76 2.67 4.25 3.73 2.09.9 2.5.72 2.95.68.45-.04 1.45-.59 1.65-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.47-.28-.25-.13-1.45-.72-1.67-.8-.22-.08-.39-.12-.55.12-.16.25-.63.8-.77.96-.14.17-.29.19-.53.06-.25-.12-1.03-.38-1.96-1.21-.72-.65-1.21-1.45-1.35-1.69-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.55-1.35-.76-1.84-.2-.48-.4-.42-.55-.42z"/></svg>';
+
+const $ = id => document.getElementById(id);
+const opened = new Set();
+
+/* Preview: placeholder instead of a real name */
+(function renderPreview() {
+  const marker = "\u0000";
+  const text = generateWhatsAppMessage(marker);
+  const box = $("preview");
+  const url = "https://example.com/demo-invite";
+  const [before, after] = text.split(marker);
+  box.append(document.createTextNode(before));
+  const ph = document.createElement("span");
+  ph.className = "ph"; ph.textContent = "اسم الطالب";
+  box.append(ph);
+  const [a, b] = after.split(url);
+  box.append(document.createTextNode(a));
+  const link = document.createElement("a");
+  link.href = url; link.textContent = url; link.target = "_blank"; link.rel = "noopener";
+  box.append(link, document.createTextNode(b));
+})();
+
+const norm = s => String(s).toLowerCase()
+  .replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه")
+  .replace(/[\u064B-\u0652\u0640]/g, "").replace(/\s+/g, " ").trim();
+
+function render() {
+  const q = norm($("q").value);
+  const list = students
+    .map((s, i) => ({ ...s, n: i + 1 }))
+    .filter(s => !q || norm(s.name).includes(q) || s.phone.includes(q.replace(/[^\d]/g, "") || "\u0001"));
+  const body = $("rows");
+  body.textContent = "";
+  list.forEach(s => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td class="idx"></td><td class="name"></td><td><span class="phone"></span></td><td class="act"></td>';
+    tr.children[0].textContent = s.n;
+    tr.children[1].textContent = s.name;
+    if (opened.has(s.phone)) {
+      const b = document.createElement("span");
+      b.className = "badge"; b.textContent = "تم فتح WhatsApp";
+      tr.children[1].append(b);
+    }
+    tr.querySelector(".phone").textContent = s.phone;
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "wa";
+    btn.innerHTML = WA_ICON + "<span>🟢 فتح WhatsApp</span>";
+    btn.setAttribute("aria-label", "فتح WhatsApp للطالب " + s.name);
+    btn.addEventListener("click", () => handleOpen(s, btn));
+    tr.children[3].append(btn);
+    body.append(tr);
+  });
+  $("empty").hidden = list.length > 0;
+  $("count").textContent = "عرض " + list.length + " من " + students.length + " طالب";
+}
+
+function handleOpen(s, btn) {
+  openWhatsApp(s.name, s.phone);
+  const first = !opened.has(s.phone);
+  opened.add(s.phone);
+  $("opened").textContent = opened.size;
+  btn.classList.add("done");
+  btn.querySelector("span").textContent = "✅ تم فتح WhatsApp";
+  if (first) {
+    const cell = btn.closest("tr").children[1];
+    if (!cell.querySelector(".badge")) {
+      const b = document.createElement("span");
+      b.className = "badge"; b.textContent = "تم فتح WhatsApp";
+      cell.append(b);
+    }
+  }
+  setTimeout(() => {
+    if (btn.isConnected) { btn.classList.remove("done"); btn.querySelector("span").textContent = "🟢 فتح WhatsApp"; }
+  }, 2200);
+}
+
+$("q").addEventListener("input", render);
+$("total").textContent = students.length;
+render();
+</script>
+</body>
+</html>

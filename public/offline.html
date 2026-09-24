@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#075e54" />
+    <title>غير متصل — مراقبو الامتحانات</title>
+    <style>
+      :root { color-scheme: light dark; font-family: Tahoma, Arial, sans-serif; }
+      body { min-height: 100dvh; margin: 0; display: grid; place-items: center; padding: 24px; background: #f0f4f2; color: #12261f; }
+      main { width: min(100%, 30rem); max-width: 30rem; padding: 28px; border: 1px solid #dfe8e3; border-radius: 16px; background: #fff; text-align: center; }
+      h1 { margin: 0 0 8px; font-size: 1.4rem; }
+      p { margin: 0 0 18px; line-height: 1.8; color: #4f635a; }
+      button { min-height: 48px; padding: 0 20px; border: 0; border-radius: 10px; background: #0b6b60; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+      @media (prefers-color-scheme: dark) { body { background: #0d1714; color: #e8f1ed; } main { border-color: #25362f; background: #15211d; } p { color: #a7bcb4; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>لا يوجد اتصال بالإنترنت</h1>
+      <p>افتح التطبيق مرة أخرى عند عودة الاتصال. لن يتم حفظ أو إرسال أي بيانات بدون الاتصال.</p>
+      <button type="button" onclick="location.reload()">إعادة المحاولة</button>
+    </main>
+  </body>
+</html>

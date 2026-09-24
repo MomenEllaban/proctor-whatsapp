@@ -23,8 +23,10 @@ WhatsApp (on the phone) pre-filled with the message, and you press send.
 - 💾 وضعان: **ديمو محلي صفر إعدادات** (ملف JSON) أو **إنتاجي بـ Supabase** (PostgreSQL + Auth + RLS).
 
 ### التشغيل السريع (وضع الديمو)
+> يتطلب Node.js 22.12 أو أحدث. بيانات الديمو في المشروع خيالية ولا تحتوي على أرقام أو روابط حقيقية.
+
 ```bash
-npm install
+npm ci
 npm run db:seed   # ينشئ 10 حسابات ديمو بقوائم جاهزة
 npm run dev       # http://localhost:3000
 ```
@@ -43,7 +45,7 @@ npm run dev       # http://localhost:3000
 | staff3@horus.edu.eg | رنا عادل |
 | staff4@horus.edu.eg | نور الدين سمير |
 
-كل الحسابات تشترك في نفس كلمة المرور (المتغير `DEMO_PASSWORD`، الافتراضي `demo1234`).
+كل الحسابات التجريبية تشترك في نفس كلمة المرور المحلية (`DEMO_PASSWORD`، الافتراضي `demo1234`). لا تُستخدم بيانات الديمو في الإنتاج.
 
 ### متغيرات البيئة (`.env` — انسخ من `.env.example`)
 | المتغير | الوصف | الافتراضي |
@@ -65,13 +67,15 @@ npm run dev       # http://localhost:3000
 3. كل قائمة ومراقب مربوط بصاحبها، والقواعد (RLS) تمنع أي وصول من مستخدم آخر. أشغّل ملف المخطط يضيف تلقائيًا صف `profiles` لأي مستخدم جديد (trigger `handle_new_user`).
 
 ### النشر
-- **Vercel:** اربط المستودع بمنصة Vercel أو استخدم CLI (`vercel deploy --prod`). بدون ضبط `DATA_PROVIDER=supabase` سيعمل بالديمو تلقائيًا (يُزرع من `src/lib/demo-seed.json` في `/tmp`).
-- **GitHub:** المستودع عام جاهز للاستنساخ.
+- **Vercel:** اضبط `DATA_PROVIDER=supabase` ومفاتيح Supabase قبل النشر. في بيئة Vercel لا يتم تفعيل وضع الديمو تلقائيًا.
+- **GitHub:** المستودع جاهز للاستنساخ، لكن لا ترفع ملفات `.env` أو مفاتيح الخدمات.
 
 ### الأمان والخصوصية
 - لا يُخزَّن أي مفتاح في الكود — الكل عبر متغيرات البيئة.
+- بيانات الديمو خيالية، وملفات `.env` و`data/` مستبعدة من Git.
 - الصور المرفوعة للاستخراج تُرسل للنموذج عبر `base64` **ولا تُحفظ على أي قرص**.
 - التطبيق لا يمتلك أي تكامل مع WhatsApp API — يفتح الرابط فقط، فما زال الإنسان هو من يضغط "إرسال".
+- قبل الإنتاج: شغّل `supabase/schema.sql`، واضبط النطاقات/كود الدعوة، وراجع RLS والصلاحيات.
 
 ---
 
@@ -87,8 +91,10 @@ npm run dev       # http://localhost:3000
 - 💾 Two modes: **zero-config local demo** (JSON file) or **production Supabase** (PostgreSQL + Auth + Row-Level Security).
 
 ### Quick start (demo mode)
+> Requires Node.js 22.12+. Demo records are fictional and contain no real phone numbers or invite links.
+
 ```bash
-npm install
+npm ci
 npm run db:seed   # creates 10 demo accounts with ready lists
 npm run dev       # http://localhost:3000
 ```
@@ -100,8 +106,12 @@ See `.env.example`. Table with all variables is in the Arabic section above.
 
 ### Tests
 ```bash
-npm test          # 65 unit tests (phone normalization incl. all 17 sample students, message builder, parser, Arabic utils)
-npm run build     # type-check + lint + production build (Turbopack)
+npm run lint
+npm run typecheck
+npm test          # unit tests
+npm run build     # production build (Turbopack)
+# or run everything:
+npm run check
 ```
 
 ### Security & privacy
@@ -113,4 +123,3 @@ npm run build     # type-check + lint + production build (Turbopack)
 
 Built with Next.js (App Router + Turbopack), React 19, Tailwind v4, TypeScript, Vitest,
 Supabase, and Anthropic Claude.
-# proctor-whatsapp
