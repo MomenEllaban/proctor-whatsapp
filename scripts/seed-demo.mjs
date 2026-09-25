@@ -10,6 +10,8 @@ import { createHash } from "node:crypto";
 const hash = (s) => createHash("sha256").update(s).digest("hex");
 const idOf = (email) => hash(email.trim().toLowerCase());
 const now = new Date().toISOString();
+/** Bump when this seed changes; src/lib/data/demoStore.ts must match. */
+const SEED_VERSION = 2;
 
 /* Fictional accounts only — no real people, no specific organisation. */
 const EXAMS = [
@@ -83,7 +85,7 @@ EXAMS.forEach((entry, index) => {
   }
 });
 
-const DB = { users, lists, proctors };
+const DB = { users, lists, proctors, seed_version: SEED_VERSION };
 
 const dir = path.join(process.cwd(), "data");
 fs.mkdirSync(dir, { recursive: true });

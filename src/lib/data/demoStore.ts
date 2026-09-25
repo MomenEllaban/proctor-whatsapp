@@ -16,9 +16,13 @@ export interface DemoDB {
   users: Profile[];
   lists: ProctorList[];
   proctors: Proctor[];
+  /** Bump whenever demo-seed.json changes so stale stores self-heal. */
+  seed_version?: number;
 }
 
 const BLOB_PATH = "proctor-whatsapp/demo-db.json";
+/** Must match the value written by scripts/seed-demo.mjs. */
+const SEED_VERSION = 2;
 let DB_FILE: string | null = null;
 let localCache: DemoDB | null = null;
 
@@ -45,7 +49,12 @@ function usesBlobStore(): boolean {
 }
 
 function cloneSeed(): DemoDB {
-  return JSON.parse(JSON.stringify(seedData)) as DemoDB;
+  return { ...(JSON.parse(JSON.stringify(seedData)) as DemoDB), seed_version: SEED_VERSION };
+}
+
+/** Stale stores (older deploys, old blob) are replaced by the current seed. */
+function isCurrentSeed(db: DemoDB | null | undefined): boolean {
+  return Boolean(db && db.seed_version === SEED_VERSION);
 }
 
 async function readBlobDb(): Promise<DemoDB | null> {
@@ -85,7 +94,10 @@ export async function loadDb(): Promise<DemoDB> {
   if (usesBlobStore()) {
     try {
       const remote = await readBlobDb();
-      if (remote) return remote;
+      if (isCurrentSeed(remote)) return remote as DemoDB;
+      if (remote) {
+        console.info("[demo-store] stale demo db detected; reseeding with current data");
+      }
       const seeded = cloneSeed();
       await writeBlobDb(seeded);
       return seeded;
@@ -101,7 +113,13 @@ export async function loadDb(): Promise<DemoDB> {
   const file = dbFile();
   if (fs.existsSync(file)) {
     try {
-      localCache = JSON.parse(fs.readFileSync(file, "utf8")) as DemoDB;
+      const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as DemoDB;
+      if (isCurrentSeed(parsed)) {
+        localCache = parsed;
+      } else {
+        console.info("[demo-store] stale local demo db detected; reseeding with current data");
+        localCache = null;
+      }
     } catch {
       localCache = null;
     }
