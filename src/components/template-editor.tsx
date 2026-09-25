@@ -1,9 +1,20 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { NAME_PLACEHOLDER } from "@/lib/message";
+import {
+  buildMessageTemplate,
+  DEFAULT_MESSAGE_TEMPLATE,
+  EXAM_OPTIONS,
+  NAME_PLACEHOLDER,
+  parseMessageTemplate,
+  validateMessageVariables,
+  type MessageVariableKey,
+  type MessageVariables,
+} from "@/lib/message";
 
-/** Textarea for the message template with a {name} insert button + live preview. */
+/**
+ * Structured editor: the message is always ready, and the user only fills the
+ * few variable values. The final text is rebuilt from those values on every edit.
+ */
 export function TemplateEditor({
   value,
   onChange,
@@ -11,57 +22,195 @@ export function TemplateEditor({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  const [selStart, setSelStart] = useState<number | null>(null);
+  const variables = parseMessageTemplate(value);
+  const errors = validateMessageVariables(variables);
+  const errorCount = Object.keys(errors).length;
+  const examSelection = EXAM_OPTIONS.some(
+    (option) => option === variables.exam,
+  )
+    ? variables.exam
+    : "custom";
+  const hasChanges = value !== DEFAULT_MESSAGE_TEMPLATE;
 
-  const insertPlaceholder = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const start = selStart ?? el.selectionStart;
-    const end = selStart ?? el.selectionEnd;
-    const next = value.slice(0, start) + NAME_PLACEHOLDER + value.slice(end);
-    onChange(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      const pos = start + NAME_PLACEHOLDER.length;
-      el.setSelectionRange(pos, pos);
-    });
-  }, [value, onChange, selStart]);
-
-  const preview = previewText(value);
+  const updateVariable = (
+    key: MessageVariableKey,
+    nextValue: string,
+  ): void => {
+    const next: MessageVariables = { ...variables, [key]: nextValue };
+    onChange(buildMessageTemplate(next));
+  };
 
   return (
-    <div>
-      <div className="toolbar">
-        <span className="text-xs text-muted">
-          {`{name}`} يُستبدل تلقائيًا باسم المراقب عند فتح الرسالة
-        </span>
-        <button type="button" className="chip" onClick={insertPlaceholder}>
-          + إدراج {`{name}`}
+    <div className="template-builder">
+      <div className="template-intro">
+        <div className="min-w-0">
+          <p className="template-intro-title">✅ القالب جاهز — غيّر المتغيرات فقط</p>
+          <p className="template-help">
+            باقي الجمل ثابتة، واسم المراقب بيتكتب لوحده مع كل رقم.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="chip"
+          onClick={() => onChange(DEFAULT_MESSAGE_TEMPLATE)}
+          disabled={!hasChanges}
+        >
+          ↺ استعادة الافتراضي
         </button>
       </div>
 
-      <textarea
-        ref={ref}
-        className="input min-h-36 resize-y leading-relaxed"
-        dir="rtl"
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          setSelStart(null);
-        }}
-        onSelect={(e) => {
-          const el = e.currentTarget;
-          setSelStart(el.selectionStart);
-        }}
-        onBlur={(e) => {
-          setSelStart(e.currentTarget.selectionStart);
-        }}
-        placeholder={"أهلاً {name} 👋\n\n...اكتب رسالتك هنا...\n\nتحياتنا"}
-        aria-label="قالب الرسالة"
-      />
+      <div className="template-auto">
+        <div className="template-label">
+          <span>التحية واسم المراقب</span>
+          <span className="auto-tag">تلقائي</span>
+        </div>
+        <p className="template-auto-text" dir="rtl">
+          السلام عليكم ورحمة الله وبركاته، أهلاً{" "}
+          <span className="ph">اسم المراقب</span>
+        </p>
+        <p className="template-help">
+          الاسم ده بيجيب من قائمة المراقبين — مش محتاج تكتبه يدوي.
+        </p>
+      </div>
 
-      <p className="mb-1 mt-4 text-sm font-bold">معاينة حية</p>
+      <div className="template-fields">
+        <div className="template-field">
+          <label className="template-label" htmlFor="template-exam">
+            <span>امتحان الجروب</span>
+            <span className="variable-tag">متغير</span>
+          </label>
+          <select
+            id="template-exam"
+            className="input template-select"
+            value={examSelection}
+            onChange={(event) =>
+              updateVariable(
+                "exam",
+                event.target.value === "custom" ? "" : event.target.value,
+              )
+            }
+            aria-invalid={!!errors.exam}
+            aria-describedby="template-exam-help"
+          >
+            {EXAM_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+            <option value="custom">امتحان آخر…</option>
+          </select>
+          <p id="template-exam-help" className="template-help">
+            اختر الامتحان أو اكتب اسمًا مختلفًا.
+          </p>
+          {errors.exam && (
+            <p role="alert" className="field-error">
+              {errors.exam}
+            </p>
+          )}
+          {examSelection === "custom" && (
+            <div className="template-custom">
+              <label className="template-help" htmlFor="template-exam-custom">
+                اسم الامتحان
+              </label>
+              <input
+                id="template-exam-custom"
+                className="input"
+                value={variables.exam}
+                onChange={(event) => updateVariable("exam", event.target.value)}
+                placeholder="مثال: فيزياء 101"
+                aria-invalid={!!errors.exam}
+                autoComplete="off"
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="template-field">
+          <label className="template-label" htmlFor="template-location">
+            <span>مكان الامتحان</span>
+            <span className="variable-tag">متغير</span>
+          </label>
+          <input
+            id="template-location"
+            className="input"
+            value={variables.location}
+            onChange={(event) => updateVariable("location", event.target.value)}
+            placeholder="Horus University - Faculty of Engineering"
+            aria-invalid={!!errors.location}
+            autoComplete="off"
+          />
+          <p className="template-help">الكلية أو القاعة اللي الامتحان فيها.</p>
+          {errors.location && (
+            <p role="alert" className="field-error">
+              {errors.location}
+            </p>
+          )}
+        </div>
+
+        <div className="template-field">
+          <label className="template-label" htmlFor="template-group-url">
+            <span>رابط جروب WhatsApp</span>
+            <span className="variable-tag">متغير</span>
+          </label>
+          <input
+            id="template-group-url"
+            className="input"
+            type="url"
+            dir="ltr"
+            value={variables.groupUrl}
+            onChange={(event) => updateVariable("groupUrl", event.target.value)}
+            placeholder="https://chat.whatsapp.com/…"
+            aria-invalid={!!errors.groupUrl}
+            inputMode="url"
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+          />
+          <p className="template-help">الصق رابط الدعوة من زرار مشاركة الجروب.</p>
+          {errors.groupUrl && (
+            <p role="alert" className="field-error">
+              {errors.groupUrl}
+            </p>
+          )}
+        </div>
+
+        <div className="template-field">
+          <label className="template-label" htmlFor="template-date">
+            <span>موعد الامتحان</span>
+            <span className="variable-tag">متغير</span>
+          </label>
+          <input
+            id="template-date"
+            className="input"
+            value={variables.examDate}
+            onChange={(event) => updateVariable("examDate", event.target.value)}
+            placeholder="يوم الجمعة الموافق 9 أكتوبر 2026"
+            aria-invalid={!!errors.examDate}
+            autoComplete="off"
+          />
+          <p className="template-help">اكتبه زي ما عايز يظهر في الرسالة.</p>
+          {errors.examDate && (
+            <p role="alert" className="field-error">
+              {errors.examDate}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="template-preview-head">
+        <div>
+          <p className="template-preview-title">معاينة حية</p>
+          <p className="template-help">الشكل النهائي اللي هيوصل لكل مراقب.</p>
+        </div>
+        <span
+          className={
+            errorCount > 0 ? "preview-state preview-state-warn" : "preview-state"
+          }
+        >
+          {errorCount > 0 ? "تحتاج مراجعة" : "جاهزة"}
+        </span>
+      </div>
+
       <div className="wa-frame" aria-live="polite">
         <div className="wa-frame-head">
           <span className="wa-avatar" aria-hidden>
@@ -74,42 +223,33 @@ export function TemplateEditor({
         </div>
         <div className="wa-body">
           <div className="wa-msg">
-            {preview.hasPlaceholder ? (
-              renderTemplate(value)
-            ) : value ? (
-              value
-            ) : (
-              <span className="text-muted">
-                اكتب القالب ليظهر المعاينة هنا — هيبقي بالشكل اللي هيوصّل
-                للمراقب.
-              </span>
-            )}
+            {renderTemplate(value)}
             <span className="wa-time">الآن</span>
           </div>
         </div>
       </div>
 
-      {!preview.hasPlaceholder && value && (
-        <p className="mb-0 mt-2 text-xs text-muted">
-          لم يُستخدم {`{name}`} في القالب — كل المراقبين هيستلموا نفس الرسالة بدون
-          أسمائهم.
+      {errorCount > 0 && (
+        <p role="alert" className="template-warning">
+          ⚠️ اكمل الحقول المميزة بالأحمر قبل الحفظ.
         </p>
       )}
+
+      <p className="template-footnote">
+        التطبيق بيفتح واتساب والرسالة مكتوبة مسبقًا — الإرسال بتمسه إنت بنفسك.
+      </p>
     </div>
   );
 }
 
-function previewText(value: string): { hasPlaceholder: boolean } {
-  return { hasPlaceholder: value.includes(NAME_PLACEHOLDER) };
-}
-
 function renderTemplate(value: string) {
+  if (!value.includes(NAME_PLACEHOLDER)) return value;
   return value.split(NAME_PLACEHOLDER).flatMap((part, index) =>
     index === 0
       ? [part]
       : [
           <span key={`name-${index}`} className="ph">
-            اسم المراقب — {`{name}`}
+            اسم المراقب
           </span>,
           part,
         ],

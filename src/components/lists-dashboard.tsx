@@ -53,8 +53,8 @@ export function ListsDashboard({
         <section className="card text-center">
           <p className="font-bold">لا توجد قوائم بعد</p>
           <p className="text-sm text-muted">
-            ابدأ بإنشاء أول قائمة (مثل: مراقبين امتحان EST1)، اكتب قالب الرسالة،
-            ثم أضف المراقبين من صورة أو بالنسخ واللصق.
+            ابدأ بإنشاء أول قائمة (مثل: مراقبين امتحان EST1)، اضبط رسالة
+            الجروب، ثم أضف المراقبين من صورة أو بالنسخ واللصق.
           </p>
           <Link href="/lists/new" className="btn mx-auto mt-2">
             إنشاء أول قائمة

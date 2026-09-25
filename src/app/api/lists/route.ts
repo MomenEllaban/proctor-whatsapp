@@ -6,6 +6,7 @@ import {
   getOptionalCurrentUser,
 } from "@/lib/data";
 import { isDemo } from "@/lib/env";
+import { DEFAULT_MESSAGE_TEMPLATE } from "@/lib/message";
 
 export async function GET() {
   const user = await getOptionalCurrentUser();
@@ -23,9 +24,11 @@ export async function POST(req: Request) {
   if (!title?.trim()) {
     return NextResponse.json({ error: "اكتب اسم القائمة" }, { status: 400 });
   }
+  const rawTemplate =
+    typeof message_template === "string" ? message_template : "";
   const list = await createList(user, {
     title: String(title).slice(0, 120),
-    message_template: String(message_template ?? "")
+    message_template: (rawTemplate.trim() ? rawTemplate : DEFAULT_MESSAGE_TEMPLATE)
       .slice(0, 4000)
       .replace(/\r\n/g, "\n"),
     default_country_code: String(default_country_code || "20").slice(0, 5),

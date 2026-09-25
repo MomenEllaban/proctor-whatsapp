@@ -399,7 +399,7 @@ export function ProctorsView({
 function MessagePreview({ template }: { template: string }) {
   const text = template ?? "";
   if (!text.includes("{name}")) {
-    return <>{text || "اكتب قالب الرسالة من صفحة التعديل — سيظهر هنا معاينة مباشرة."}</>;
+    return <>{text || "اضبط رسالة الجروب من صفحة التعديل — سيظهر هنا معاينة مباشرة."}</>;
   }
   return (
     <span className="whitespace-pre-wrap break-words text-ink">

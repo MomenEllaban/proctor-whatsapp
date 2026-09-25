@@ -17,7 +17,7 @@ create table if not exists public.lists (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles (id) on delete cascade,
   title text not null,
-  message_template text not null default '',
+  message_template text not null default E'السلام عليكم ورحمة الله وبركاته، أهلاً {name}\n\nده الجروب الخاص بامتحان EST1\n\nالمكان: Horus University - Faculty of Engineering\n\n📌 رابط الجروب: https://chat.whatsapp.com/L7UDY5953nJ8Z6CU3o9jZ4\n\n🗓 موعد الامتحان: يوم الجمعة الموافق 9 أكتوبر 2026\n\n🔔 يرجى تأكيد الحضور بكتابة الاسم الثنائي داخل الجروب.\n\nمع تمنياتنا بالتوفيق، وكل سنة وأنتم طيبين 🌷',
   default_country_code text not null default '20',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

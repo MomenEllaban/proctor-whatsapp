@@ -46,7 +46,7 @@ export default async function ListDetailPage({
             + استيراد
           </Link>
           <Link href={`/lists/${id}/edit`} className="btn btn-ghost text-sm">
-            ✏️ تعديل القالب
+            ✏️ تعديل الرسالة
           </Link>
         </div>
       </div>

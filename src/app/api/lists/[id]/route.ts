@@ -5,6 +5,7 @@ import {
   getOptionalCurrentUser,
   updateList,
 } from "@/lib/data";
+import { DEFAULT_MESSAGE_TEMPLATE } from "@/lib/message";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -25,7 +26,11 @@ export async function PATCH(req: Request, { params }: Params) {
   const patch: Record<string, string> = {};
   if (typeof body.title === "string") patch.title = body.title.slice(0, 120);
   if (typeof body.message_template === "string")
-    patch.message_template = body.message_template
+    patch.message_template = (
+      body.message_template.trim()
+        ? body.message_template
+        : DEFAULT_MESSAGE_TEMPLATE
+    )
       .slice(0, 4000)
       .replace(/\r\n/g, "\n");
   if (typeof body.default_country_code === "string")

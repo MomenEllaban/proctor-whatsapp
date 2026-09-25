@@ -4,20 +4,27 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TemplateEditor } from "./template-editor";
 import { post, patch, del } from "@/lib/client-api";
+import { DEFAULT_MESSAGE_TEMPLATE, isValidMessageTemplate } from "@/lib/message";
 import type { ProctorList } from "@/lib/types";
 
 /** Create a new list, one clear step at a time. */
 export function CreateListForm() {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [template, setTemplate] = useState("");
+  const [template, setTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
   const [error, setError] = useState("");
+  const [templateError, setTemplateError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     setError("");
+    setTemplateError("");
     if (!title.trim()) {
       setError("اكتب اسم القائمة أولًا");
+      return;
+    }
+    if (!isValidMessageTemplate(template)) {
+      setTemplateError("أكمل بيانات الرسالة المميزة بالأحرف الحمرا أولًا");
       return;
     }
 
@@ -98,13 +105,24 @@ export function CreateListForm() {
             2
           </span>
           <div>
-            <div className="step-title">رسالة WhatsApp للمراقبين</div>
+            <div className="step-title">رسالة الجروب</div>
             <div className="step-hint">
-              نفس الرسالة للكل، و{`{name}`} يتغير لاسم كل مراقب
+              القالب جاهز — اختار الامتحان وعدّل بيانات الجروب بس
             </div>
           </div>
         </div>
-        <TemplateEditor value={template} onChange={setTemplate} />
+        <TemplateEditor
+          value={template}
+          onChange={(next) => {
+            setTemplate(next);
+            setTemplateError("");
+          }}
+        />
+        {templateError && (
+          <p role="alert" className="field-error">
+            {templateError}
+          </p>
+        )}
       </div>
 
       <div className="card">
@@ -123,15 +141,23 @@ export function CreateListForm() {
 export function EditListForm({ list }: { list: ProctorList }) {
   const router = useRouter();
   const [title, setTitle] = useState(list.title);
-  const [template, setTemplate] = useState(list.message_template);
+  const [template, setTemplate] = useState(
+    list.message_template?.trim()
+      ? list.message_template
+      : DEFAULT_MESSAGE_TEMPLATE,
+  );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [titleError, setTitleError] = useState("");
+  const [templateError, setTemplateError] = useState("");
 
   const save = async () => {
     setError("");
     setTitleError("");
+    setTemplateError("");
     if (!title.trim()) return setTitleError("اكتب اسم القائمة أولًا");
+    if (!isValidMessageTemplate(template))
+      return setTemplateError("أكمل بيانات الرسالة المميزة بالأحرف الحمرا أولًا");
     setBusy(true);
     const res = await patch<{ list: ProctorList }>(`/api/lists/${list.id}`, {
       title,
@@ -193,10 +219,24 @@ export function EditListForm({ list }: { list: ProctorList }) {
             2
           </span>
           <div>
-            <div className="step-title">رسالة WhatsApp للمراقبين</div>
+            <div className="step-title">رسالة الجروب</div>
+            <div className="step-hint">
+              عدّل المتغيرات — باقي النص ثابت لكل المراقبين
+            </div>
           </div>
         </div>
-        <TemplateEditor value={template} onChange={setTemplate} />
+        <TemplateEditor
+          value={template}
+          onChange={(next) => {
+            setTemplate(next);
+            setTemplateError("");
+          }}
+        />
+        {templateError && (
+          <p role="alert" className="field-error">
+            {templateError}
+          </p>
+        )}
       </div>
 
       {error && (

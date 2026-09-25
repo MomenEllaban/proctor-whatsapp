@@ -14,8 +14,8 @@ export default function NewListPage() {
       </Link>
       <h1 className="m-0 text-xl font-extrabold">قائمة مراقبة جديدة</h1>
       <p className="mt-1 mb-4 text-sm text-muted">
-        كُلّ قائمة = مجموعة مراقبين بيستلموا نفس الرسالة (مع اسم المراقب)، بتكون
-        لامتحان أو لجنة واحدة.
+        الرسالة جاهزة بالشكل الصح — كل قائمة لمجموعة مراقبين بيستلموا نفس
+        الرسالة (مع اسم المراقب)، بتكون لامتحان أو لجنة واحدة.
       </p>
       <CreateListForm />
     </div>
