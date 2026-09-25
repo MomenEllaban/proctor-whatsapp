@@ -1,11 +1,14 @@
-/* Generates the PWA icons as PNG files with zero dependencies.
+/* Generates the app icons with zero dependencies:
+   - public/icons/*.png  (PWA + apple-touch icons)
+   - src/app/favicon.ico (browser tab: 16/32/48/256)
    Icon design: WhatsApp-green rounded square, white speech bubble + tail,
-   green phone-handset glyph. Uses signed-distance rasterization. */
+   and a green confirmation check mark. Uses signed-distance rasterization. */
 import * as zlib from "node:zlib";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
 const OUT = path.join(process.cwd(), "public", "icons");
+const APP_DIR = path.join(process.cwd(), "src", "app");
 fs.mkdirSync(OUT, { recursive: true });
 
 function sdRoundRect(px, py, cx, cy, hw, hh, r) {
@@ -46,7 +49,7 @@ function lighten(hex, f) {
   return [r, g, b];
 }
 
-function renderIcon(size, { maskable }) {
+function renderIcon(size, { maskable, glyphScale = 1 }) {
   const px = Buffer.alloc(size * size * 4);
   const top = lighten("#128c7e", 0.1);
   const bottom = [7, 94, 84];
@@ -88,20 +91,20 @@ function renderIcon(size, { maskable }) {
         r = g = b = 255;
       }
 
-      // phone handset glyph: a rotated capsule so it reads as a "call" mark
+      // confirmation check mark inside the bubble (round caps + joins)
       let inGlyph = false;
       if (inBubble) {
-        const cxp = bubbleC[0] - size * 0.045;
-        const cyp = bubbleC[1] - size * 0.02;
-        const d1 = distSeg(X, Y, cxp - size * 0.075, cyp + size * 0.085, cxp + size * 0.07, cyp - size * 0.075);
-        const d2 = distSeg(X, Y, cxp - size * 0.05, cyp + size * 0.105, cxp + size * 0.095, cyp - size * 0.05);
-        inGlyph = d1 < size * 0.032 || d2 < size * 0.028;
-        const gp = Math.max(Math.min(d1 - size * 0.032, d2 - size * 0.028), 0);
+        const sw = size * 0.046 * glyphScale;
+        const c1 = [size * 0.455, size * 0.475];
+        const c2 = [size * 0.545, size * 0.570];
+        const c3 = [size * 0.700, size * 0.365];
+        const d1 = distSeg(X, Y, c1[0], c1[1], c2[0], c2[1]);
+        const d2 = distSeg(X, Y, c2[0], c2[1], c3[0], c3[1]);
+        inGlyph = d1 < sw || d2 < sw;
         if (inGlyph) {
           r = bottom[0];
           g = bottom[1];
           b = bottom[2];
-          void gp;
         }
       }
 
@@ -126,7 +129,7 @@ const CRC_TABLE = new Int32Array(256).map((_, n) => {
 });
 function crc32(buf) {
   let c = ~0;
-  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  for (let i = 0; i < buf.length; i++) c = (c >>> 8) ^ CRC_TABLE[(c ^ buf[i]) & 0xff];
   return (~c) >>> 0;
 }
 function chunk(type, data) {
@@ -157,8 +160,77 @@ function encodePng(size, rgba) {
   ]);
 }
 
+/* ---------------- minimal ICO encoder ---------------- */
+/** 32-bit DIB (bottom-up BGRA + 1bpp AND mask) for the small classic sizes. */
+function encodeDib(size, rgba) {
+  const header = Buffer.alloc(40);
+  header.writeUInt32LE(40, 0); // biSize
+  header.writeInt32LE(size, 4); // biWidth
+  header.writeInt32LE(size * 2, 8); // biHeight = pixels + mask
+  header.writeUInt16LE(1, 12); // biPlanes
+  header.writeUInt16LE(32, 14); // biBitCount
+  const maskRowBytes = Math.ceil(size / 32) * 4;
+  const xorSize = size * size * 4;
+  header.writeUInt32LE(xorSize + maskRowBytes * size, 20); // biSizeImage
+
+  const xor = Buffer.alloc(xorSize);
+  const mask = Buffer.alloc(maskRowBytes * size);
+  for (let y = 0; y < size; y++) {
+    const row = size - 1 - y; // ICO stores rows bottom-up
+    for (let x = 0; x < size; x++) {
+      const s = (row * size + x) * 4;
+      const d = (y * size + x) * 4;
+      xor[d] = rgba[s + 2];
+      xor[d + 1] = rgba[s + 1];
+      xor[d + 2] = rgba[s];
+      xor[d + 3] = rgba[s + 3];
+      if (rgba[s + 3] < 128) mask[y * maskRowBytes + (x >> 3)] |= 0x80 >> (x & 7);
+    }
+  }
+  return Buffer.concat([header, xor, mask]);
+}
+
+function encodeIco(images) {
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(1, 2); // 1 = icon
+  header.writeUInt16LE(images.length, 4);
+  const dir = Buffer.alloc(16 * images.length);
+  let offset = header.length + dir.length;
+  images.forEach((image, index) => {
+    const at = index * 16;
+    const dim = image.size >= 256 ? 0 : image.size; // 0 stands for 256
+    dir[at] = dim;
+    dir[at + 1] = dim;
+    dir.writeUInt16LE(1, at + 4); // planes
+    dir.writeUInt16LE(32, at + 6); // bit count
+    dir.writeUInt32LE(image.data.length, at + 8);
+    dir.writeUInt32LE(offset, at + 12);
+    offset += image.data.length;
+  });
+  return Buffer.concat([header, dir, ...images.map((image) => image.data)]);
+}
+
+/** Small sizes need a slightly bolder mark to stay readable in a browser tab. */
+function glyphScaleFor(size) {
+  if (size <= 16) return 1.1;
+  if (size <= 32) return 1.05;
+  return 1;
+}
+
 for (const [name, size, maskable] of [["icon-192", 192, false], ["icon-512", 512, false], ["icon-maskable-512", 512, true]]) {
   const png = encodePng(size, renderIcon(size, { maskable }));
   fs.writeFileSync(path.join(OUT, name + ".png"), png);
   console.log("wrote", name + ".png", png.length, "bytes");
 }
+
+const favicon = encodeIco(
+  [16, 32, 48, 256].map((size) => {
+    const rgba = renderIcon(size, { maskable: false, glyphScale: glyphScaleFor(size) });
+    return {
+      size,
+      data: size >= 256 ? encodePng(size, rgba) : encodeDib(size, rgba),
+    };
+  }),
+);
+fs.writeFileSync(path.join(APP_DIR, "favicon.ico"), favicon);
+console.log("wrote favicon.ico", favicon.length, "bytes");

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="مراقبو الامتحانات">
+  <defs>
+    <linearGradient id="wa" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a988b" />
+      <stop offset="1" stop-color="#075e54" />
+    </linearGradient>
+  </defs>
+  <rect x="1.9" y="1.9" width="60.2" height="60.2" rx="19.2" fill="url(#wa)" />
+  <path d="M32 39.7 37.4 46.1 28.2 44.8Z" fill="#ffffff" />
+  <circle cx="38.4" cy="29.4" r="15.7" fill="#ffffff" />
+  <path
+    d="M29.1 30.4 34.9 36.5 44.8 23.4"
+    fill="none"
+    stroke="#075e54"
+    stroke-width="5.9"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

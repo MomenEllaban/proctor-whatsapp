@@ -27,7 +27,11 @@ export const metadata: Metadata = {
     title: "مراقبو الامتحانات",
   },
   icons: {
-    apple: "/icons/icon-192.png",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: [{ url: "/icons/icon-192.png", sizes: "192x192" }],
   },
 };
 
