@@ -4,7 +4,11 @@ const configuredProvider = process.env.DATA_PROVIDER?.trim().toLowerCase();
 const dataProvider =
   configuredProvider || (process.env.VERCEL ? "supabase" : "demo");
 const signupMode = process.env.SIGNUP_MODE?.trim().toLowerCase() || "domain";
-const allowedEmailDomains = list(process.env.ALLOWED_EMAIL_DOMAINS);
+/** Horus University is the only accepted domain unless overridden explicitly. */
+const allowedEmailDomains = list(
+  process.env.ALLOWED_EMAIL_DOMAINS || "horus.edu.eg",
+);
+const adminEmails = list(process.env.ADMIN_EMAILS || "admin@horus.edu.eg");
 const inviteCode = process.env.INVITE_CODE?.trim() || "";
 
 if (dataProvider !== "demo" && dataProvider !== "supabase") {
@@ -22,11 +26,6 @@ if (dataProvider === "supabase") {
   if (signupMode === "invite" && !inviteCode) {
     throw new Error("INVITE_CODE is required when SIGNUP_MODE=invite.");
   }
-  if (signupMode === "domain" && !allowedEmailDomains.length) {
-    throw new Error(
-      "ALLOWED_EMAIL_DOMAINS is required when SIGNUP_MODE=domain in Supabase mode.",
-    );
-  }
 }
 
 function list(value: string | undefined): string[] {
@@ -41,6 +40,7 @@ export const env = {
   dataProvider,
 
   allowedEmailDomains,
+  adminEmails,
   inviteCode,
   signupMode,
 
@@ -59,29 +59,43 @@ export const env = {
 
 export const isDemo = env.dataProvider === "demo";
 
-/** Sign-up restricted unless an invite code is used. Returns an Arabic message. */
+/** True when the address belongs to one of the allowed university domains. */
+export function isAllowedDomain(email: string): boolean {
+  const clean = String(email ?? "").trim().toLowerCase();
+  if (!clean) return false;
+  return env.allowedEmailDomains.some((domain) =>
+    clean.endsWith("@" + domain.replace(/^@/, "")),
+  );
+}
+
+/** Emails promoted to admin without touching the database. */
+export function isAdminEmail(email: string): boolean {
+  const clean = String(email ?? "").trim().toLowerCase();
+  return env.adminEmails.includes(clean);
+}
+
+/**
+ * Sign-up policy: the university domain is always enforced, and when
+ * SIGNUP_MODE=invite an invite code is required on top of it.
+ * Returns an Arabic error message or null when the request is allowed.
+ */
 export function authPolicyError(
   email: string,
   invite: string,
 ): string | null {
-  const clean = email.trim().toLowerCase();
+  if (!isAllowedDomain(email)) {
+    const allowed = env.allowedEmailDomains
+      .map((domain) => "@" + domain.replace(/^@/, ""))
+      .join(" أو ");
+    return `البريد الإلكتروني غير مسموح — الحسابات متاحة لـ ${allowed} فقط.`;
+  }
   if (env.signupMode === "open") return null;
   if (env.signupMode === "invite") {
     return env.inviteCode && cleanInvite(invite) === cleanInvite(env.inviteCode)
       ? null
       : "كود الدعوة غير صحيح — احصل على الكود من مدير النظام.";
   }
-  // domain mode (default)
-  if (!env.allowedEmailDomains.length) {
-    return "تسجيل الحسابات غير مهيأ — اطلب من مدير النظام ضبط النطاقات المسموحة.";
-  }
-  const ok = env.allowedEmailDomains.some((d) => {
-    const domain = "@" + d.replace(/^@/, "");
-    return clean.endsWith(domain);
-  });
-  return ok
-    ? null
-    : "البريد الإلكتروني غير مسموح — يجب أن ينتهي بأحد النطاقات المخصصة لنظام المراقبين.";
+  return null;
 }
 
 function cleanInvite(s: string): string {

@@ -35,6 +35,14 @@ export function ListsDashboard({
     router.refresh();
   };
 
+  const totals = lists.reduce(
+    (acc, l) => ({
+      proctors: acc.proctors + l.proctorCount,
+      opened: acc.opened + l.openedCount,
+    }),
+    { proctors: 0, opened: 0 },
+  );
+
   return (
     <div>
       <section className="card flex flex-wrap items-center justify-between gap-3">
@@ -47,6 +55,29 @@ export function ListsDashboard({
         <Link href="/lists/new" className="btn w-full shrink-0 min-[360px]:w-auto">
           + قائمة جديدة
         </Link>
+      </section>
+
+      <section className="admin-stats" aria-label="إحصائياتك">
+        <div className="admin-stat">
+          <b>{lists.length}</b>
+          <span>قوائم</span>
+          <small>امتحانات ولجان</small>
+        </div>
+        <div className="admin-stat">
+          <b>{totals.proctors}</b>
+          <span>مراقب</span>
+          <small>أرقام وهمية</small>
+        </div>
+        <div className="admin-stat">
+          <b>{totals.opened}</b>
+          <span>تم الفتح</span>
+          <small>فتح واتساب</small>
+        </div>
+        <div className="admin-stat">
+          <b>{lists.length ? Math.round((totals.opened / Math.max(totals.proctors, 1)) * 100) : 0}%</b>
+          <span>نسبة البدء</span>
+          <small>من كل القوائم</small>
+        </div>
       </section>
 
       {lists.length === 0 && (
@@ -110,7 +141,8 @@ export function ListsDashboard({
       </ul>
 
       <p className="text-center text-xs text-muted">
-        التطبيق يفتح WhatsApp فقط، ولا يرسل أي رسالة تلقائيًا وبلا تخزين صور المستخدمين.
+        نظام مراقبو الامتحانات — جامعة حورس، كلية الهندسة. يفتح WhatsApp فقط ولا
+        يرسل أي رسالة تلقائيًا، وكل البيانات المعروضة أمثلة وهمية.
       </p>
     </div>
   );

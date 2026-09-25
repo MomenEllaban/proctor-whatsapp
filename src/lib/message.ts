@@ -13,6 +13,42 @@ export interface MessageVariables {
   examDate: string;
 }
 
+/** Wording of the fixed sentences. The four variable lines never change. */
+export type MessageStyle = "formal" | "friendly" | "short";
+
+export const MESSAGE_STYLES: readonly MessageStyle[] = [
+  "formal",
+  "friendly",
+  "short",
+];
+
+export const MESSAGE_STYLE_LABELS: Record<MessageStyle, string> = {
+  formal: "رسمي",
+  friendly: "ودود",
+  short: "مختصر",
+};
+
+const STYLE_TEXT: Record<
+  MessageStyle,
+  { greeting: string; confirm: string; closing: string }
+> = {
+  formal: {
+    greeting: "السلام عليكم ورحمة الله وبركاته، أهلاً {name}",
+    confirm: "🔔 يرجى تأكيد الحضور بكتابة الاسم الثنائي داخل الجروب.",
+    closing: "مع تمنياتنا بالتوفيق، وكل سنة وأنتم طيبين 🌷",
+  },
+  friendly: {
+    greeting: "السلام عليكم ورحمة الله وبركاته 🌷 أهلاً {name}، تشرفنا بوجودك معنا.",
+    confirm: "✅ من فضلك اكتب اسمك الثنائي داخل الجروب لتأكيد الحضور.",
+    closing: "نتمنى لك التوفيق، وكل عام وأنت بخير 🌷",
+  },
+  short: {
+    greeting: "أهلاً {name} 👋",
+    confirm: "✅ أكّد حضورك بالاسم الثنائي داخل الجروب.",
+    closing: "بالتوفيق 🌷",
+  },
+};
+
 export type MessageVariableKey = keyof MessageVariables;
 export type MessageVariableErrors = Partial<
   Record<MessageVariableKey, string>
@@ -21,23 +57,35 @@ export type MessageVariableErrors = Partial<
 export const DEFAULT_MESSAGE_VARIABLES: Readonly<MessageVariables> = {
   exam: "EST1",
   location: "Horus University - Faculty of Engineering",
-  groupUrl: "https://chat.whatsapp.com/L7UDY5953nJ8Z6CU3o9jZ4",
+  /** Reserved example domain: a placeholder, never a real invite link. */
+  groupUrl: "https://example.com/demo-invite",
   examDate: "يوم الجمعة الموافق 9 أكتوبر 2026",
 };
 
 /** Builds the complete message from the four values the user can change. */
 export function buildMessageTemplate(
   variables: Readonly<MessageVariables>,
+  style: MessageStyle = "formal",
 ): string {
+  const words = STYLE_TEXT[style];
   return [
-    `السلام عليكم ورحمة الله وبركاته، أهلاً ${NAME_PLACEHOLDER}`,
+    words.greeting,
     `ده الجروب الخاص بامتحان ${variables.exam}`,
     `المكان: ${variables.location}`,
     `📌 رابط الجروب: ${variables.groupUrl}`,
     `🗓 موعد الامتحان: ${variables.examDate}`,
-    "🔔 يرجى تأكيد الحضور بكتابة الاسم الثنائي داخل الجروب.",
-    "مع تمنياتنا بالتوفيق، وكل سنة وأنتم طيبين 🌷",
+    words.confirm,
+    words.closing,
   ].join("\n\n");
+}
+
+/** Guesses the style of a saved message so editing keeps its wording. */
+export function detectMessageStyle(template: string): MessageStyle {
+  const text = String(template ?? "");
+  if (text.includes("تشرفنا بوجودك معنا")) return "friendly";
+  if (text.includes("أكّد حضورك") || /(^|\n)أهلاً \{name\} 👋/.test(text))
+    return "short";
+  return "formal";
 }
 
 export const DEFAULT_MESSAGE_TEMPLATE = buildMessageTemplate(

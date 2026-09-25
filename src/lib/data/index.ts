@@ -1,13 +1,19 @@
 import { cookies } from "next/headers";
 import { userClient } from "@/lib/supabase/server";
-import { env, isDemo } from "@/lib/env";
-import type { Proctor, ProctorList } from "@/lib/types";
+import { env, isAdminEmail, isAllowedDomain, isDemo } from "@/lib/env";
+import type {
+  AdminOverview,
+  Proctor,
+  ProctorList,
+  UserRole,
+} from "@/lib/types";
 import * as demo from "./demoStore";
 
 export interface CurrentUser {
   id: string;
   email: string;
   displayName: string | null;
+  role: UserRole;
   defaultCountryCode: string;
 }
 
@@ -22,30 +28,43 @@ export async function getSessionUser(): Promise<CurrentUser | null> {
     if (!uid) return null;
     const profile = (await demo.loadDb()).users.find((u) => u.id === uid);
     if (!profile) return null;
+    if (!isAllowedDomain(profile.email)) return null;
     return {
       id: profile.id,
       email: profile.email,
       displayName: profile.display_name,
+      role: resolveRole(profile.email, profile.role),
       defaultCountryCode: profile.default_country_code,
     };
   }
   const ctx = await userClient();
   if (!ctx) return null;
   const { user } = ctx;
+  if (!isAllowedDomain(user.email ?? "")) return null;
   const { data: profile, error: profileError } = await ctx.supabase
     .from("profiles")
-    .select("display_name,default_country_code")
+    .select("display_name,default_country_code,role")
     .eq("id", user.id)
     .maybeSingle();
   if (profileError) throw new Error(profileError.message);
+  const email = user.email ?? "";
   return {
     id: user.id,
-    email: user.email ?? "",
+    email,
     displayName:
       profile?.display_name ??
       ((user.user_metadata?.display_name as string | undefined) ?? null),
+    role: resolveRole(email, profile?.role),
     defaultCountryCode: profile?.default_country_code ?? "20",
   };
+}
+
+/** Emails on the admin allow-list win over whatever the row says. */
+function resolveRole(email: string, stored?: unknown): UserRole {
+  if (isAdminEmail(email)) return "admin";
+  return stored === "admin" || stored === "supervisor" || stored === "user"
+    ? stored
+    : "user";
 }
 
 export async function requireCurrentUser(): Promise<CurrentUser> {
@@ -68,6 +87,13 @@ export class UnauthorizedError extends Error {
   constructor() {
     super("غير مسموح");
   }
+}
+
+/** Same as requireCurrentUser, but only for admins. */
+export async function requireAdmin(): Promise<CurrentUser> {
+  const user = await requireCurrentUser();
+  if (user.role !== "admin") throw new UnauthorizedError();
+  return user;
 }
 
 /* ------------------------------ profiles ------------------------------ */
@@ -303,6 +329,98 @@ export async function resetListOpened(
   return !error;
 }
 
+/* ------------------------------ admin -------------------------------- */
+
+/** Platform-wide overview for the admin panel (fictional demo data only). */
+export async function getAdminOverview(): Promise<AdminOverview> {
+  if (isDemo) return await demo.adminOverview();
+  const ctx = await userClient();
+  if (!ctx) {
+    return {
+      stats: { users: 0, lists: 0, proctors: 0, opened: 0 },
+      users: [],
+      lists: [],
+    };
+  }
+  const { data: profiles, error: profilesError } = await ctx.supabase
+    .from("profiles")
+    .select("id,email,display_name,role,created_at");
+  if (profilesError) throw new Error(profilesError.message);
+  const { data: lists, error: listsError } = await ctx.supabase
+    .from("lists")
+    .select("id,title,owner_id,created_at");
+  if (listsError) throw new Error(listsError.message);
+  const { data: proctors, error: proctorsError } = await ctx.supabase
+    .from("proctors")
+    .select("list_id,opened_at");
+  if (proctorsError) throw new Error(proctorsError.message);
+
+  const users = (profiles ?? []).map((row) => {
+    const id = row.id as string;
+    const own = (lists ?? []).filter((l) => l.owner_id === id);
+    const ownIds = new Set(own.map((l) => l.id as string));
+    const proctorsOfUser = (proctors ?? []).filter((p) =>
+      ownIds.has(p.list_id as string),
+    );
+    return {
+      id,
+      email: row.email as string,
+      display_name: (row.display_name as string | null) ?? null,
+      role: resolveRole(row.email as string, row.role),
+      created_at: row.created_at as string,
+      listCount: own.length,
+      proctorCount: proctorsOfUser.length,
+      openedCount: proctorsOfUser.filter((p) => p.opened_at).length,
+    };
+  });
+
+  const rowOf = (id: string) => (profiles ?? []).find((p) => p.id === id);
+
+  const listRows = (lists ?? []).map((l) => {
+    const own = (proctors ?? []).filter((p) => p.list_id === l.id);
+    const owner = rowOf(l.owner_id as string);
+    return {
+      id: l.id as string,
+      title: l.title as string,
+      owner_id: l.owner_id as string,
+      owner_name:
+        (owner?.display_name as string | null) ||
+        (owner?.email as string) ||
+        "مستخدم",
+      owner_email: (owner?.email as string) ?? "",
+      proctorCount: own.length,
+      openedCount: own.filter((p) => p.opened_at).length,
+      created_at: l.created_at as string,
+    };
+  });
+
+  return {
+    stats: {
+      users: users.length,
+      lists: listRows.length,
+      proctors: (proctors ?? []).length,
+      opened: (proctors ?? []).filter((p) => p.opened_at).length,
+    },
+    users: users.sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    lists: listRows.sort((a, b) => b.created_at.localeCompare(a.created_at)),
+  };
+}
+
+/** Changes a user's role. Admin allow-list emails keep admin access. */
+export async function setUserRole(
+  userId: string,
+  role: UserRole,
+): Promise<boolean> {
+  if (isDemo) return await demo.setUserRole(userId, role);
+  const ctx = await userClient();
+  if (!ctx) return false;
+  const { error } = await ctx.supabase
+    .from("profiles")
+    .update({ role })
+    .eq("id", userId);
+  return !error;
+}
+
 /* ----------------------------- auth helpers --------------------------- */
 
 export async function demoLogin(
@@ -323,6 +441,7 @@ export async function demoLogin(
     id: profile.id,
     email: profile.email,
     displayName: profile.display_name,
+    role: resolveRole(profile.email, profile.role),
     defaultCountryCode: profile.default_country_code,
   };
 }

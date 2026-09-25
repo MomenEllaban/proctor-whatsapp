@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { env, isDemo } from "@/lib/env";
+import { env, isDemo, isAllowedDomain } from "@/lib/env";
 import { demoLogin } from "@/lib/data";
-import { authPolicyError } from "@/lib/env";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
@@ -19,12 +18,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "أدخل البريد الإلكتروني وكلمة المرور" }, { status: 400 });
   }
 
-  // In domain mode login is also restricted to the company domain.
-  if (env.signupMode === "domain" && env.allowedEmailDomains.length) {
-    const policy = authPolicyError(email, "");
-    if (policy) {
-      return NextResponse.json({ error: policy }, { status: 403 });
-    }
+  // The university domain is enforced on every sign-in attempt.
+  if (!isAllowedDomain(String(email))) {
+    return NextResponse.json(
+      { error: `الحسابات متاحة لـ ${env.allowedEmailDomains.map((d) => "@" + d).join(" أو ")} فقط.` },
+      { status: 403 },
+    );
   }
 
   if (isDemo) {

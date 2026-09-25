@@ -3,6 +3,7 @@ import {
   buildMessageTemplate,
   DEFAULT_MESSAGE_TEMPLATE,
   DEFAULT_MESSAGE_VARIABLES,
+  detectMessageStyle,
   isValidMessageTemplate,
   parseMessageTemplate,
   validateMessageVariables,
@@ -15,7 +16,7 @@ describe("default message template", () => {
         "السلام عليكم ورحمة الله وبركاته، أهلاً {name}",
         "ده الجروب الخاص بامتحان EST1",
         "المكان: Horus University - Faculty of Engineering",
-        "📌 رابط الجروب: https://chat.whatsapp.com/L7UDY5953nJ8Z6CU3o9jZ4",
+        "📌 رابط الجروب: https://example.com/demo-invite",
         "🗓 موعد الامتحان: يوم الجمعة الموافق 9 أكتوبر 2026",
         "🔔 يرجى تأكيد الحضور بكتابة الاسم الثنائي داخل الجروب.",
         "مع تمنياتنا بالتوفيق، وكل سنة وأنتم طيبين 🌷",
@@ -23,6 +24,13 @@ describe("default message template", () => {
     );
     expect(DEFAULT_MESSAGE_TEMPLATE).toContain("{name}");
     expect(isValidMessageTemplate(DEFAULT_MESSAGE_TEMPLATE)).toBe(true);
+  });
+
+  it("never ships a real invite link by default", () => {
+    expect(DEFAULT_MESSAGE_VARIABLES.groupUrl).toBe(
+      "https://example.com/demo-invite",
+    );
+    expect(DEFAULT_MESSAGE_TEMPLATE).not.toContain("chat.whatsapp.com");
   });
 
   it("round-trips through the structured variables", () => {
@@ -65,5 +73,33 @@ describe("default message template", () => {
       "location",
     ]);
     expect(isValidMessageTemplate(DEFAULT_MESSAGE_TEMPLATE)).toBe(true);
+  });
+});
+
+describe("message styles", () => {
+  it("keeps the four variable lines identical across styles", () => {
+    const base = buildMessageTemplate(DEFAULT_MESSAGE_VARIABLES, "formal");
+    for (const style of ["friendly", "short"] as const) {
+      const message = buildMessageTemplate(DEFAULT_MESSAGE_VARIABLES, style);
+      for (const line of base.split("\n\n").slice(1, 5)) {
+        expect(message).toContain(line);
+      }
+      expect(message).toContain("{name}");
+      expect(isValidMessageTemplate(message)).toBe(true);
+      expect(parseMessageTemplate(message)).toEqual(DEFAULT_MESSAGE_VARIABLES);
+    }
+  });
+
+  it("detects the style of a saved message", () => {
+    expect(detectMessageStyle(buildMessageTemplate(DEFAULT_MESSAGE_VARIABLES, "formal"))).toBe(
+      "formal",
+    );
+    expect(
+      detectMessageStyle(buildMessageTemplate(DEFAULT_MESSAGE_VARIABLES, "friendly")),
+    ).toBe("friendly");
+    expect(detectMessageStyle(buildMessageTemplate(DEFAULT_MESSAGE_VARIABLES, "short"))).toBe(
+      "short",
+    );
+    expect(detectMessageStyle("نص عشوائي")).toBe("formal");
   });
 });

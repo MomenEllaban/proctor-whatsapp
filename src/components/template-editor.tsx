@@ -1,12 +1,18 @@
 "use client";
 
+import { useState } from "react";
+import { post } from "@/lib/client-api";
 import {
   buildMessageTemplate,
   DEFAULT_MESSAGE_TEMPLATE,
+  detectMessageStyle,
   EXAM_OPTIONS,
+  MESSAGE_STYLE_LABELS,
+  MESSAGE_STYLES,
   NAME_PLACEHOLDER,
   parseMessageTemplate,
   validateMessageVariables,
+  type MessageStyle,
   type MessageVariableKey,
   type MessageVariables,
 } from "@/lib/message";
@@ -22,6 +28,11 @@ export function TemplateEditor({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const [style, setStyle] = useState<MessageStyle>(() =>
+    detectMessageStyle(value),
+  );
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiNote, setAiNote] = useState("");
   const variables = parseMessageTemplate(value);
   const errors = validateMessageVariables(variables);
   const errorCount = Object.keys(errors).length;
@@ -37,7 +48,34 @@ export function TemplateEditor({
     nextValue: string,
   ): void => {
     const next: MessageVariables = { ...variables, [key]: nextValue };
-    onChange(buildMessageTemplate(next));
+    onChange(buildMessageTemplate(next, style));
+  };
+
+  const changeStyle = (next: MessageStyle): void => {
+    setStyle(next);
+    setAiNote("");
+    onChange(buildMessageTemplate(variables, next));
+  };
+
+  const askAi = async () => {
+    if (errorCount > 0 || aiBusy) return;
+    setAiBusy(true);
+    setAiNote("");
+    const res = await post<{ message?: string; source?: string }>(
+      "/api/ai/message",
+      { style, variables },
+    );
+    setAiBusy(false);
+    if (!res.ok || !res.data?.message) {
+      setAiNote(res.error ?? "تعذر تشغيل المساعد — القالب الحالي زي ما هو.");
+      return;
+    }
+    onChange(res.data.message);
+    setAiNote(
+      res.data.source === "gemini"
+        ? "✨ صياغة بالذكاء الاصطناعي — راجع المعاينة قبل الحفظ."
+        : "✨ صياغة جاهزة من القوالب الرسمية (أضف GEMINI_API_KEY لصياغة بالذكاء الاصطناعي).",
+    );
   };
 
   return (
@@ -52,11 +90,40 @@ export function TemplateEditor({
         <button
           type="button"
           className="chip"
-          onClick={() => onChange(DEFAULT_MESSAGE_TEMPLATE)}
+          onClick={() => {
+            setStyle("formal");
+            setAiNote("");
+            onChange(DEFAULT_MESSAGE_TEMPLATE);
+          }}
           disabled={!hasChanges}
         >
           ↺ استعادة الافتراضي
         </button>
+      </div>
+
+      <div className="ai-panel">
+        <span className="ai-label">🤖 أسلوب الصياغة</span>
+        <span className="ai-style" role="group" aria-label="أسلوب الصياغة">
+          {MESSAGE_STYLES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={style === option}
+              onClick={() => changeStyle(option)}
+            >
+              {MESSAGE_STYLE_LABELS[option]}
+            </button>
+          ))}
+        </span>
+        <button
+          type="button"
+          className="chip"
+          onClick={askAi}
+          disabled={aiBusy || errorCount > 0}
+        >
+          {aiBusy ? "جاري الصياغة..." : "✨ اكتب بالذكاء الاصطناعي"}
+        </button>
+        {aiNote && <p className="ai-note">{aiNote}</p>}
       </div>
 
       <div className="template-auto">

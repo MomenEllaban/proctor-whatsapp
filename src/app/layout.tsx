@@ -15,11 +15,12 @@ const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(!t)
 
 export const metadata: Metadata = {
   title: {
-    default: "مراقبو الامتحانات — WhatsApp",
-    template: "%s | مراقبو الامتحانات",
+    default: "نظام مراقبو الامتحانات — جامعة حورس، كلية الهندسة",
+    template: "%s | نظام مراقبو الامتحانات",
   },
   description:
-    "نظام لإرسال رسائل WhatsApp مخصصة لكل مراقب بضغطة واحدة. التطبيق لا يرسل أي رسالة تلقائيًا.",
+    "نظام مراقبو امتحانات جامعة حورس – كلية الهندسة: قوائم مراقبين ورسائل WhatsApp مخصصة بضغطة واحدة. لا يرسل أي رسالة تلقائيًا.",
+  applicationName: "نظام مراقبو الامتحانات",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -37,8 +38,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#075e54" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a3d36" },
+    { media: "(prefers-color-scheme: light)", color: "#0d2a48" },
+    { media: "(prefers-color-scheme: dark)", color: "#081827" },
   ],
   width: "device-width",
   initialScale: 1,

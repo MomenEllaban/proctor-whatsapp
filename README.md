@@ -14,36 +14,35 @@ WhatsApp (on the phone) pre-filled with the message, and you press send.
 ## 🇪🇬 العربية
 
 ### المميزات
-- 🔐 حساب مستقل لكل مشرف (بياناته معزولة تمامًا عن غيره).
+- 🏛️ هوية **جامعة حورس — كلية الهندسة** (شعار + ألوان كحلي/ذهبي) مع تصميم موبايل أول.
+- 🔐 الحسابات مقصورة على **@horus.edu.eg** (مفروض في التسجيل والدخول) وثلاثة أدوار: **أدمن / مشرف / مستخدم**.
+- 🛠️ **لوحة تحكم للأدمن** (`/admin`): إحصائيات المنصة، تعديل دور أي حساب، ومراقبة كل القوائم.
+- 🤖 **مساعد صياغة بالذكاء الاصطناعي**: صياغة رسمية/ودودة/مختصرة مع الحفاظ على المتغيرات.
 - 📇 إضافة المراقبين دفعة واحدة: **من صورة** (تصوير قائمة المراقبين + استخراج تلقائي بالذكاء الاصطناعي Gemini، يدعم صور iPhone .HEIC) أو **نسخ/لصق** من Excel أو Word أو WhatsApp.
 - 🔍 شاشة مراجعة قبل الحفظ: كل صف يظهر بحالته (صالح / رقم ناقص / مكرر) وبتصحيح صيغة الرقم تلقائيًا.
-- ✉️ قالب رسالة واحد للقائمة مع متغير `{name}` + **معاينة حية** بشكل محادثة WhatsApp.
+- ✉️ قالب رسالة جاهز بالفعل (مفيش رسالة فاضية): المستخدم بيغيّر **4 متغيرات فقط** (الامتحان، المكان، رابط الجروب، الموعد) + معاينة حية بشكل محادثة WhatsApp.
 - 🟢 زر "فتح WhatsApp": يفتح المحادثة للمرافق المطلوب مباشرة (على الموبايل عبر `wa.me`، على الكمبيوتر عبر رابط الويب)، ومتابعة أرقام تم فتحها وReset.
 - 📱 تصميم موبايل أول بالعربية (RTL) + وضع ليلي/نهاري + PWA قابل للتثبيت.
 - 💾 وضعان: **ديمو محلي صفر إعدادات** (ملف JSON) أو **إنتاجي بـ Supabase** (PostgreSQL + Auth + RLS).
+
+> ⚠️ **خصوصية البيانات**: بيانات الديمو وهمية بالكامل — أسماء عامة (`مستخدم 1`)، أرقام `2010 000 0000`، ورابط دعوة `example.com`. لا يوجد أي اسم حقيقي أو رابط جروب حقيقي في المستودع.
 
 ### التشغيل السريع (وضع الديمو)
 > يتطلب Node.js 22.12 أو أحدث. بيانات الديمو في المشروع خيالية ولا تحتوي على أرقام أو روابط حقيقية.
 
 ```bash
 npm ci
-npm run db:seed   # ينشئ 10 حسابات ديمو بقوائم جاهزة
+npm run db:seed   # ينشئ 4 حسابات ديمو (أدمن/مشرف/مستخدمين) بقوائم جاهزة
 npm run dev       # http://localhost:3000
 ```
 افتح صفحة تسجيل الدخول — ستجد **أزرار "دخول سريع"** للحسابات التجريبية:
 
-| الحساب | الاسم |
-|---|---|
-| demo@horus.edu.eg | مستخدم تجريبي (17 مراقب — قائمة EST1) |
-| manager1@horus.edu.eg | أحمد السيد |
-| manager2@horus.edu.eg | منى خالد |
-| supervisor1@horus.edu.eg | محمد فتحي |
-| supervisor2@horus.edu.eg | سارة إبراهيم |
-| supervisor3@horus.edu.eg | عمر عبد الرحمن |
-| staff1@horus.edu.eg | ياسمين محمود |
-| staff2@horus.edu.eg | كريم حسن |
-| staff3@horus.edu.eg | رنا عادل |
-| staff4@horus.edu.eg | نور الدين سمير |
+| الحساب | الاسم | الدور |
+|---|---|---|
+| admin@horus.edu.eg | مستخدم 1 | أدمن (لوحة التحكم) |
+| supervisor@horus.edu.eg | مستخدم 2 | مشرف |
+| user1@horus.edu.eg | مستخدم 3 | مستخدم |
+| user2@horus.edu.eg | مستخدم 4 | مستخدم |
 
 كل الحسابات التجريبية تشترك في نفس كلمة المرور المحلية (`DEMO_PASSWORD`، الافتراضي `demo1234`). لا تُستخدم بيانات الديمو في الإنتاج.
 
@@ -52,7 +51,8 @@ npm run dev       # http://localhost:3000
 |---|---|---|
 | `DATA_PROVIDER` | `demo` للتجربة المحلية، `supabase` للإنتاج | `demo` |
 | `SIGNUP_MODE` | `domain` (نطاقات فقط) / `invite` (كود دعوة) / `open` | `domain` |
-| `ALLOWED_EMAIL_DOMAINS` | النطاقات المسموح بالتسجيل بها (مفصولة بفواصل) | `horus.edu.eg` |
+| `ALLOWED_EMAIL_DOMAINS` | النطاقات المسموح بالتسجيل والدخول بها (مفصولة بفواصل) | `horus.edu.eg` |
+| `ADMIN_EMAILS` | إيميلات تُرقّى للأدمن مباشرة (مفصولة بفواصل) | `admin@horus.edu.eg` |
 | `INVITE_CODE` | كود الدعوة عند `SIGNUP_MODE=invite` | — |
 | `DEMO_PASSWORD` | باسورد كل حسابات الديمو | `demo1234` |
 | `NEXT_PUBLIC_SUPABASE_URL` | معرف مشروع Supabase | — |
@@ -98,11 +98,12 @@ npm run dev       # http://localhost:3000
 
 ```bash
 npm ci
-npm run db:seed   # creates 10 demo accounts with ready lists
+npm run db:seed   # creates 4 demo accounts (admin/supervisor/user) with ready lists
 npm run dev       # http://localhost:3000
 ```
-10 demo accounts (demo@horus.edu.eg, manager1…staff4@horus.edu.eg) with **one-tap quick-login
-buttons** on the sign-in page; shared password from `DEMO_PASSWORD` (default `demo1234`).
+4 demo accounts (admin@horus.edu.eg, supervisor@horus.edu.eg, user1/user2@horus.edu.eg) with
+**one-tap quick-login buttons** on the sign-in page; shared password from `DEMO_PASSWORD`
+(default `demo1234`). Only `@horus.edu.eg` can sign in.
 
 ### Environment variables
 See `.env.example`. Table with all variables is in the Arabic section above.

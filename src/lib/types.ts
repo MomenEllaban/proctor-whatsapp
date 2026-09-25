@@ -1,11 +1,62 @@
 export type CountryCode = string; // e.g. "20"
 
+/** Access levels: admin supervises everything, supervisor manages, user owns lists. */
+export type UserRole = "admin" | "supervisor" | "user";
+
+export const USER_ROLES: readonly UserRole[] = ["admin", "supervisor", "user"];
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "أدمن",
+  supervisor: "مشرف",
+  user: "مستخدم",
+};
+
+export function isUserRole(value: unknown): value is UserRole {
+  return value === "admin" || value === "supervisor" || value === "user";
+}
+
 export interface Profile {
   id: string;
   email: string;
   display_name: string | null;
+  role: UserRole;
   default_country_code: CountryCode;
   created_at: string;
+}
+
+/** One row in the admin panel: a user plus their activity counters. */
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: UserRole;
+  created_at: string;
+  listCount: number;
+  proctorCount: number;
+  openedCount: number;
+}
+
+/** One row in the admin panel: a list with its owner. */
+export interface AdminListRow {
+  id: string;
+  title: string;
+  owner_id: string;
+  owner_name: string;
+  owner_email: string;
+  proctorCount: number;
+  openedCount: number;
+  created_at: string;
+}
+
+export interface AdminOverview {
+  stats: {
+    users: number;
+    lists: number;
+    proctors: number;
+    opened: number;
+  };
+  users: AdminUserRow[];
+  lists: AdminListRow[];
 }
 
 export interface ProctorList {

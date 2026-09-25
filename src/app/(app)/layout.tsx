@@ -12,7 +12,11 @@ export default async function AppLayout({
 
   return (
     <div className="app-shell">
-      <AppHeader userEmail={user.email} userName={user.displayName} />
+      <AppHeader
+        userEmail={user.email}
+        userName={user.displayName}
+        role={user.role}
+      />
       <main className="app-main">{children}</main>
     </div>
   );
