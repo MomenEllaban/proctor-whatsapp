@@ -67,7 +67,8 @@ npm run dev       # http://localhost:3000
 3. كل قائمة ومراقب مربوط بصاحبها، والقواعد (RLS) تمنع أي وصول من مستخدم آخر. أشغّل ملف المخطط يضيف تلقائيًا صف `profiles` لأي مستخدم جديد (trigger `handle_new_user`).
 
 ### النشر
-- **Vercel:** اضبط `DATA_PROVIDER=supabase` ومفاتيح Supabase قبل النشر. في بيئة Vercel لا يتم تفعيل وضع الديمو تلقائيًا.
+- **Vercel Demo:** يمكن ربط Private Vercel Blob عبر `BLOB_READ_WRITE_TOKEN` حتى تبقى قوائم التجربة محفوظة بين الـ Instances. النسخة الحالية مرتبطة بمخزن Blob خاص على Vercel.
+- **Vercel Production:** اضبط `DATA_PROVIDER=supabase` ومفاتيح Supabase قبل النشر. في بيئة Vercel لا يتم تفعيل وضع الديمو تلقائيًا.
 - **GitHub:** المستودع جاهز للاستنساخ، لكن لا ترفع ملفات `.env` أو مفاتيح الخدمات.
 
 ### الأمان والخصوصية

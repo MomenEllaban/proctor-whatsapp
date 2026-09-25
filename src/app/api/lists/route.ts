@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import {
   createList,
+  getList,
   listLists,
   getOptionalCurrentUser,
 } from "@/lib/data";
+import { isDemo } from "@/lib/env";
 
 export async function GET() {
   const user = await getOptionalCurrentUser();
@@ -28,5 +30,20 @@ export async function POST(req: Request) {
       .replace(/\r\n/g, "\n"),
     default_country_code: String(default_country_code || "20").slice(0, 5),
   });
-  return NextResponse.json({ list });
+  const persisted = await getList(user, list.id);
+  if (!persisted || persisted.id !== list.id) {
+    console.error("[create-list] persistence verification failed", {
+      listId: list.id,
+      provider: isDemo ? "demo" : "supabase",
+    });
+    return NextResponse.json(
+      { error: "تم إنشاء القائمة لكن تعذر تأكيد حفظها. حاول مرة أخرى." },
+      { status: 503 },
+    );
+  }
+  console.info("[create-list] persisted", {
+    listId: persisted.id,
+    provider: isDemo ? "demo" : "supabase",
+  });
+  return NextResponse.json({ list: persisted }, { status: 201 });
 }

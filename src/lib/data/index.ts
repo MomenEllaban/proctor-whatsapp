@@ -20,7 +20,7 @@ export async function getSessionUser(): Promise<CurrentUser | null> {
     const store = await cookies();
     const uid = store.get(DEMO_COOKIE)?.value;
     if (!uid) return null;
-    const profile = demo.loadDb().users.find((u) => u.id === uid);
+    const profile = (await demo.loadDb()).users.find((u) => u.id === uid);
     if (!profile) return null;
     return {
       id: profile.id,
@@ -73,7 +73,7 @@ export class UnauthorizedError extends Error {
 /* ------------------------------ profiles ------------------------------ */
 
 export async function getProfileCount(): Promise<number> {
-  if (isDemo) return demo.loadDb().users.length;
+  if (isDemo) return (await demo.loadDb()).users.length;
   const { createClient } = await import("@supabase/supabase-js");
   if (!env.supabaseUrl || !env.supabaseServiceRoleKey) return 0;
   const admin = createClient(env.supabaseUrl, env.supabaseServiceRoleKey);
@@ -86,7 +86,7 @@ export async function getProfileCount(): Promise<number> {
 /* -------------------------------- lists ------------------------------- */
 
 export async function listLists(user: CurrentUser): Promise<ProctorList[]> {
-  if (isDemo) return demo.listOf(user.id);
+  if (isDemo) return await demo.listOf(user.id);
   const ctx = await userClient();
   if (!ctx) return [];
   const { data, error } = await ctx.supabase
@@ -102,7 +102,7 @@ export async function getList(
   user: CurrentUser,
   listId: string,
 ): Promise<ProctorList | null> {
-  if (isDemo) return demo.getList(user.id, listId);
+  if (isDemo) return await demo.getList(user.id, listId);
   const ctx = await userClient();
   if (!ctx) return null;
   const { data, error } = await ctx.supabase
@@ -123,7 +123,7 @@ export async function createList(
     default_country_code: string;
   },
 ): Promise<ProctorList> {
-  if (isDemo) return demo.createList(user.id, data);
+  if (isDemo) return await demo.createList(user.id, data);
   const ctx = await userClient();
   if (!ctx) throw new UnauthorizedError();
   const { data: row, error } = await ctx.supabase
@@ -149,7 +149,7 @@ export async function updateList(
     default_country_code: string;
   }>,
 ): Promise<ProctorList | null> {
-  if (isDemo) return demo.updateList(user.id, listId, data);
+  if (isDemo) return await demo.updateList(user.id, listId, data);
   const ctx = await userClient();
   if (!ctx) return null;
   const { data: row, error } = await ctx.supabase
@@ -167,7 +167,7 @@ export async function deleteList(
   user: CurrentUser,
   listId: string,
 ): Promise<boolean> {
-  if (isDemo) return demo.deleteList(user.id, listId);
+  if (isDemo) return await demo.deleteList(user.id, listId);
   const ctx = await userClient();
   if (!ctx) return false;
   const { error } = await ctx.supabase
@@ -184,7 +184,7 @@ export async function getProctors(
   user: CurrentUser,
   listId: string,
 ): Promise<Proctor[]> {
-  if (isDemo) return demo.proctorsOf(user.id, listId);
+  if (isDemo) return await demo.proctorsOf(user.id, listId);
   const ctx = await userClient();
   if (!ctx) return [];
   const { data, error } = await ctx.supabase
@@ -202,7 +202,7 @@ export async function getProctor(
 ): Promise<Proctor | null> {
   if (isDemo) {
     // demo.getProctor already checks that the proctor belongs to the user.
-    return demo.getProctor(user.id, proctorId);
+    return await demo.getProctor(user.id, proctorId);
   }
   const ctx = await userClient();
   if (!ctx) return null;
@@ -220,7 +220,7 @@ export async function bulkAddProctors(
   listId: string,
   rows: { name: string; phone: string }[],
 ): Promise<number> {
-  if (isDemo) return demo.bulkCreateProctors(user.id, listId, rows);
+  if (isDemo) return await demo.bulkCreateProctors(user.id, listId, rows);
   const ctx = await userClient();
   if (!ctx) throw new UnauthorizedError();
   if (!rows.length) return 0;
@@ -250,7 +250,7 @@ export async function updateProctor(
   patch: { name?: string; phone?: string },
 ): Promise<void> {
   if (isDemo) {
-    demo.updateProctor(user.id, proctorId, patch);
+    await demo.updateProctor(user.id, proctorId, patch);
     return;
   }
   const ctx = await userClient();
@@ -266,7 +266,7 @@ export async function deleteProctor(
   user: CurrentUser,
   proctorId: string,
 ): Promise<boolean> {
-  if (isDemo) return demo.deleteProctor(user.id, proctorId);
+  if (isDemo) return await demo.deleteProctor(user.id, proctorId);
   const ctx = await userClient();
   if (!ctx) return false;
   const { error } = await ctx.supabase.from("proctors").delete().eq("id", proctorId);
@@ -278,7 +278,7 @@ export async function markProctorOpened(
   proctorId: string,
 ): Promise<void> {
   if (isDemo) {
-    demo.markOpened(user.id, proctorId);
+    await demo.markOpened(user.id, proctorId);
     return;
   }
   const ctx = await userClient();
@@ -293,7 +293,7 @@ export async function resetListOpened(
   user: CurrentUser,
   listId: string,
 ): Promise<boolean> {
-  if (isDemo) return demo.resetListOpened(user.id, listId);
+  if (isDemo) return await demo.resetListOpened(user.id, listId);
   const ctx = await userClient();
   if (!ctx) return false;
   const { error } = await ctx.supabase
@@ -311,7 +311,7 @@ export async function demoLogin(
 ): Promise<CurrentUser | null> {
   if (!isDemo) return null;
   if (password !== env.demoPassword) return null;
-  const profile = demo.upsertUser(email);
+  const profile = await demo.upsertUser(email);
   const store = await cookies();
   store.set(DEMO_COOKIE, profile.id, {
     httpOnly: true,

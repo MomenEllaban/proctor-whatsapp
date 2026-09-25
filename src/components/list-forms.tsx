@@ -16,24 +16,51 @@ export function CreateListForm() {
 
   const submit = async () => {
     setError("");
-    if (!title.trim()) return setError("اكتب اسم القائمة أولًا");
+    if (!title.trim()) {
+      setError("اكتب اسم القائمة أولًا");
+      return;
+    }
+
     setBusy(true);
-    const res = await post<{ list: ProctorList }>("/api/lists", {
-      title,
-      message_template: template,
-      default_country_code: "20",
-    });
-    setBusy(false);
-    if (!res.ok || !res.data) return setError(res.error ?? "تعذر إنشاء القائمة");
-    router.push(`/lists/${res.data.list.id}`);
+    try {
+      const res = await post<{ list?: ProctorList }>("/api/lists", {
+        title,
+        message_template: template,
+        default_country_code: "20",
+      });
+      const listId = res.data?.list?.id;
+      console.info("[create-list] api-response", {
+        ok: res.ok,
+        status: res.status,
+        listId: listId ?? null,
+      });
+      if (!res.ok || !listId) {
+        setError(res.error ?? "تعذر إنشاء القائمة");
+        return;
+      }
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(listId)) {
+        console.error("[create-list] invalid list id", { listId });
+        setError("رجع معرّف القائمة غير صالح. حاول مرة أخرى.");
+        return;
+      }
+      const href = `/lists/${encodeURIComponent(listId)}`;
+      console.info("[create-list] navigating", { listId, href });
+      router.replace(href);
+    } catch (cause) {
+      console.error("[create-list] unexpected client error", { cause });
+      setError("تعذر إنشاء القائمة. حاول مرة أخرى.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        submit();
+        void submit();
       }}
+      aria-busy={busy}
     >
       <div className="card">
         <div className="step">

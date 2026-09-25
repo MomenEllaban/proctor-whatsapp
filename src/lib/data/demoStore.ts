@@ -1,3 +1,4 @@
+import { get, put } from "@vercel/blob";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -6,10 +7,9 @@ import seedData from "@/lib/demo-seed.json";
 import type { Proctor, ProctorList, Profile } from "@/lib/types";
 
 /**
- * Zero-config local demo persistence: a single JSON file under ./data.
- * It is intentionally not used in production; set DATA_PROVIDER=supabase.
- * The location is detected at runtime so API routes and server-rendered pages
- * agree on the same file during local development.
+ * Local demo persistence. On Vercel, when a private Blob store is connected,
+ * the same demo database is persisted there instead of the ephemeral /tmp
+ * filesystem. Supabase remains the recommended production provider.
  */
 
 export interface DemoDB {
@@ -18,7 +18,9 @@ export interface DemoDB {
   proctors: Proctor[];
 }
 
+const BLOB_PATH = "proctor-whatsapp/demo-db.json";
 let DB_FILE: string | null = null;
+let localCache: DemoDB | null = null;
 
 function dbFile(): string {
   if (DB_FILE) return DB_FILE;
@@ -38,7 +40,38 @@ function dbFile(): string {
   return DB_FILE;
 }
 
-let cache: DemoDB | null = null;
+function usesBlobStore(): boolean {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+function cloneSeed(): DemoDB {
+  return JSON.parse(JSON.stringify(seedData)) as DemoDB;
+}
+
+async function readBlobDb(): Promise<DemoDB | null> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) return null;
+  const result = await get(BLOB_PATH, {
+    access: "private",
+    token,
+    useCache: false,
+  });
+  if (!result?.stream) return null;
+  return JSON.parse(await new Response(result.stream).text()) as DemoDB;
+}
+
+async function writeBlobDb(db: DemoDB): Promise<void> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+  await put(BLOB_PATH, JSON.stringify(db), {
+    access: "private",
+    token,
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: "application/json",
+    cacheControlMaxAge: 60,
+  });
+}
 
 export function hashEmail(email: string): string {
   return createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
@@ -48,31 +81,53 @@ export function hashPassword(password: string): string {
   return createHash("sha256").update(password).digest("hex");
 }
 
-export function loadDb(): DemoDB {
-  if (cache) return cache;
+export async function loadDb(): Promise<DemoDB> {
+  if (usesBlobStore()) {
+    try {
+      const remote = await readBlobDb();
+      if (remote) return remote;
+      const seeded = cloneSeed();
+      await writeBlobDb(seeded);
+      return seeded;
+    } catch (error) {
+      console.error("[demo-store] blob read/write failed", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  if (localCache) return localCache;
   const file = dbFile();
   if (fs.existsSync(file)) {
     try {
-      cache = JSON.parse(fs.readFileSync(file, "utf8")) as DemoDB;
+      localCache = JSON.parse(fs.readFileSync(file, "utf8")) as DemoDB;
     } catch {
-      cache = null;
+      localCache = null;
     }
   }
-  if (!cache) {
-    cache = JSON.parse(JSON.stringify(seedData)) as DemoDB;
-    saveDb();
+  if (!localCache) {
+    localCache = cloneSeed();
+    await saveDb(localCache);
   }
-  return cache;
+  return localCache;
 }
 
-export function saveDb(): void {
-  if (!cache) throw new Error("Demo DB not loaded");
+export async function saveDb(db: DemoDB): Promise<void> {
+  if (usesBlobStore()) {
+    await writeBlobDb(db);
+    return;
+  }
+  localCache = db;
   fs.mkdirSync(path.dirname(dbFile()), { recursive: true });
-  fs.writeFileSync(dbFile(), JSON.stringify(cache, null, 2), "utf8");
+  fs.writeFileSync(dbFile(), JSON.stringify(db, null, 2), "utf8");
 }
 
-export function upsertUser(email: string, displayName?: string): Profile {
-  const db = loadDb();
+export async function upsertUser(
+  email: string,
+  displayName?: string,
+): Promise<Profile> {
+  const db = await loadDb();
   const id = hashEmail(email);
   let user = db.users.find((u) => u.id === id);
   if (!user) {
@@ -84,27 +139,31 @@ export function upsertUser(email: string, displayName?: string): Profile {
       created_at: new Date().toISOString(),
     };
     db.users.push(user);
-    saveDb();
+    await saveDb(db);
   }
   return user;
 }
 
-export function listOf(userId: string): ProctorList[] {
-  return loadDb()
-    .lists.filter((l) => l.owner_id === userId)
+export async function listOf(userId: string): Promise<ProctorList[]> {
+  const db = await loadDb();
+  return db.lists
+    .filter((l) => l.owner_id === userId)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
-export function getList(userId: string, listId: string): ProctorList | null {
-  const l = loadDb().lists.find((x) => x.id === listId && x.owner_id === userId);
-  return l ?? null;
+export async function getList(
+  userId: string,
+  listId: string,
+): Promise<ProctorList | null> {
+  const db = await loadDb();
+  return db.lists.find((x) => x.id === listId && x.owner_id === userId) ?? null;
 }
 
-export function createList(
+export async function createList(
   userId: string,
   data: { title: string; message_template: string; default_country_code: string },
-): ProctorList {
-  const db = loadDb();
+): Promise<ProctorList> {
+  const db = await loadDb();
   const now = new Date().toISOString();
   const list: ProctorList = {
     id: genId(),
@@ -116,64 +175,71 @@ export function createList(
     updated_at: now,
   };
   db.lists.push(list);
-  saveDb();
+  await saveDb(db);
   return list;
 }
 
-export function updateList(
+export async function updateList(
   userId: string,
   listId: string,
   data: Partial<Pick<ProctorList, "title" | "message_template" | "default_country_code">>,
-): ProctorList | null {
-  const db = loadDb();
+): Promise<ProctorList | null> {
+  const db = await loadDb();
   const list = db.lists.find((x) => x.id === listId && x.owner_id === userId);
   if (!list) return null;
   if (typeof data.title === "string") list.title = data.title.trim();
-  if (typeof data.message_template === "string")
+  if (typeof data.message_template === "string") {
     list.message_template = data.message_template;
-  if (typeof data.default_country_code === "string")
+  }
+  if (typeof data.default_country_code === "string") {
     list.default_country_code = data.default_country_code;
+  }
   list.updated_at = new Date().toISOString();
-  saveDb();
+  await saveDb(db);
   return list;
 }
 
-export function deleteList(userId: string, listId: string): boolean {
-  const db = loadDb();
-  const i = db.lists.findIndex((x) => x.id === listId && x.owner_id === userId);
-  if (i === -1) return false;
-  db.lists.splice(i, 1);
+export async function deleteList(userId: string, listId: string): Promise<boolean> {
+  const db = await loadDb();
+  const index = db.lists.findIndex((x) => x.id === listId && x.owner_id === userId);
+  if (index === -1) return false;
+  db.lists.splice(index, 1);
   db.proctors = db.proctors.filter((p) => p.list_id !== listId);
-  saveDb();
+  await saveDb(db);
   return true;
 }
 
-export function proctorsOf(userId: string, listId: string): Proctor[] {
-  const list = getList(userId, listId);
+export async function proctorsOf(
+  userId: string,
+  listId: string,
+): Promise<Proctor[]> {
+  const db = await loadDb();
+  const list = db.lists.find((x) => x.id === listId && x.owner_id === userId);
   if (!list) return [];
-  return loadDb()
-    .proctors.filter((p) => p.list_id === listId)
+  return db.proctors
+    .filter((p) => p.list_id === listId)
     .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at));
 }
 
-export function getProctor(
+export async function getProctor(
   userId: string,
   proctorId: string,
-): Proctor | null {
-  const p = loadDb().proctors.find(
-    (x) => x.id === proctorId && x.list_id && getList(userId, x.list_id),
+): Promise<Proctor | null> {
+  const db = await loadDb();
+  const p = db.proctors.find(
+    (x) => x.id === proctorId && db.lists.some((l) => l.id === x.list_id && l.owner_id === userId),
   );
   return p ?? null;
 }
 
-export function bulkCreateProctors(
+export async function bulkCreateProctors(
   userId: string,
   listId: string,
   rows: { name: string; phone: string }[],
-): number {
-  const list = getList(userId, listId);
+): Promise<number> {
+  const db = await loadDb();
+  const list = db.lists.find((x) => x.id === listId && x.owner_id === userId);
   if (!list) return 0;
-  const db = loadDb();
   const now = new Date().toISOString();
   const maxOrder =
     db.proctors
@@ -191,60 +257,69 @@ export function bulkCreateProctors(
       created_at: now,
     });
   });
-  saveDb();
+  await saveDb(db);
   return rows.length;
 }
 
-export function updateProctor(
+export async function updateProctor(
   userId: string,
   proctorId: string,
   patch: { name?: string; phone?: string },
-): Proctor | null {
-  const db = loadDb();
+): Promise<Proctor | null> {
+  const db = await loadDb();
   const p = db.proctors.find(
-    (x) => x.id === proctorId && getList(userId, x.list_id),
+    (x) => x.id === proctorId && db.lists.some((l) => l.id === x.list_id && l.owner_id === userId),
   );
   if (!p) return null;
   if (typeof patch.name === "string") p.name = patch.name.trim();
   if (typeof patch.phone === "string") p.phone = patch.phone;
-  saveDb();
+  await saveDb(db);
   return p;
 }
 
-export function deleteProctor(userId: string, proctorId: string): boolean {
-  const db = loadDb();
-  const p = db.proctors.find(
-    (x) => x.id === proctorId && getList(userId, x.list_id),
+export async function deleteProctor(
+  userId: string,
+  proctorId: string,
+): Promise<boolean> {
+  const db = await loadDb();
+  const index = db.proctors.findIndex(
+    (x) => x.id === proctorId && db.lists.some((l) => l.id === x.list_id && l.owner_id === userId),
   );
-  if (!p) return false;
-  db.proctors = db.proctors.filter((x) => x.id !== proctorId);
-  saveDb();
+  if (index === -1) return false;
+  db.proctors.splice(index, 1);
+  await saveDb(db);
   return true;
 }
 
-export function markOpened(userId: string, proctorId: string): Proctor | null {
-  const db = loadDb();
+export async function markOpened(
+  userId: string,
+  proctorId: string,
+): Promise<Proctor | null> {
+  const db = await loadDb();
   const p = db.proctors.find(
-    (x) => x.id === proctorId && getList(userId, x.list_id),
+    (x) => x.id === proctorId && db.lists.some((l) => l.id === x.list_id && l.owner_id === userId),
   );
   if (!p) return null;
   p.opened_at = new Date().toISOString();
   p.opened_count += 1;
-  saveDb();
+  await saveDb(db);
   return p;
 }
 
-export function resetListOpened(userId: string, listId: string): boolean {
-  const list = getList(userId, listId);
+export async function resetListOpened(
+  userId: string,
+  listId: string,
+): Promise<boolean> {
+  const db = await loadDb();
+  const list = db.lists.find((x) => x.id === listId && x.owner_id === userId);
   if (!list) return false;
-  const db = loadDb();
   db.proctors.forEach((p) => {
     if (p.list_id === listId) {
       p.opened_at = null;
       p.opened_count = 0;
     }
   });
-  saveDb();
+  await saveDb(db);
   return true;
 }
 

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getList, getProctors, getSessionUser } from "@/lib/data";
+import { isDemo } from "@/lib/env";
 import { ProctorsView } from "@/components/proctors-view";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,14 @@ export default async function ListDetailPage({
   if (!user) notFound();
 
   const list = await getList(user, id);
-  if (!list) notFound();
+  if (!list) {
+    console.error("[list-detail] server-not-found", {
+      listId: id,
+      userId: user.id,
+      provider: isDemo ? "demo" : "supabase",
+    });
+    notFound();
+  }
   const proctors = await getProctors(user, id);
 
   return (
