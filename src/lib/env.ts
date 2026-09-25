@@ -50,6 +50,7 @@ export const env = {
 
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-flash-latest",
+  geminiFallbackModel: process.env.GEMINI_FALLBACK_MODEL || "gemini-3.1-flash-lite",
   geminiProjectId: process.env.GEMINI_PROJECT_ID || "",
 
   /** Demo mode is local-only: shared password seeds every demo account. */

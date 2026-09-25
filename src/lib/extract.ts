@@ -95,7 +95,6 @@ async function runGemini(
   const projectNumber = env.geminiProjectId.match(/(\d+)$/)?.[1];
   if (projectNumber) headers["X-goog-user-project"] = projectNumber;
 
-  const model = encodeURIComponent(env.geminiModel || "gemini-flash-latest");
   const request: RequestInit = {
     method: "POST",
     headers,
@@ -111,22 +110,22 @@ async function runGemini(
       },
     }),
   };
-  let response: Response | null = null;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      { ...request, signal: AbortSignal.timeout(90_000) },
-    );
-    if (
-      response.ok ||
-      ![429, 500, 502, 503, 504].includes(response.status) ||
-      attempt === 2
-    ) {
-      break;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+  const primaryModel = env.geminiModel || "gemini-flash-latest";
+  const fallbackModel = env.geminiFallbackModel;
+  let response = await requestGemini(primaryModel, request);
+  if (
+    !response.ok &&
+    [404, 429, 500, 502, 503, 504].includes(response.status) &&
+    fallbackModel &&
+    fallbackModel !== primaryModel
+  ) {
+    console.warn("[gemini] primary model unavailable; using fallback", {
+      primaryModel,
+      fallbackModel,
+      status: response.status,
+    });
+    response = await requestGemini(fallbackModel, request);
   }
-  if (!response) throw new Error("تعذر الاتصال بخدمة Gemini.");
 
   if (!response.ok) {
     const details = (await response.json().catch(() => ({}))) as {
@@ -159,6 +158,26 @@ async function runGemini(
   const warnings = rowsConsistencyWarnings(rows);
   if (!rows.length) warnings.push("لم يتم العثور على صفوف واضحة في رد Gemini.");
   return { rows, warnings };
+}
+
+async function requestGemini(model: string, request: RequestInit): Promise<Response> {
+  const encodedModel = encodeURIComponent(model);
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodedModel}:generateContent`,
+      { ...request, signal: AbortSignal.timeout(90_000) },
+    );
+    if (
+      response.ok ||
+      ![429, 500, 502, 503, 504].includes(response.status) ||
+      attempt === 2
+    ) {
+      return response;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+  }
+  return response ?? new Response(null, { status: 503 });
 }
 
 /** Tolerant JSON parsing for Gemini responses and older model outputs. */

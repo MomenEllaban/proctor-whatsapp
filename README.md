@@ -60,6 +60,7 @@ npm run dev       # http://localhost:3000
 | `SUPABASE_SERVICE_ROLE_KEY` | مفتاح الخدمة (خدمة الإحصائيات/الحذف) | — |
 | `GEMINI_API_KEY` | مفتاح Google Gemini لاستخراج الأسماء/الأرقام من الصور والنص | — |
 | `GEMINI_MODEL` | موديل Gemini المستخدم | `gemini-flash-latest` |
+| `GEMINI_FALLBACK_MODEL` | موديل بديل عند ازدحام النموذج الرئيسي | `gemini-3.1-flash-lite` |
 | `GEMINI_PROJECT_ID` | معرّف مشروع Google الاختياري | — |
 
 ### الإنتاجي بـ Supabase
