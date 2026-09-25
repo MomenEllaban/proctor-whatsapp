@@ -202,11 +202,11 @@ export function TemplateEditor({
             className="input"
             value={variables.location}
             onChange={(event) => updateVariable("location", event.target.value)}
-            placeholder="Horus University - Faculty of Engineering"
+            placeholder="قاعة الامتحانات الرئيسية"
             aria-invalid={!!errors.location}
             autoComplete="off"
           />
-          <p className="template-help">الكلية أو القاعة اللي الامتحان فيها.</p>
+          <p className="template-help">القاعة أو المكان اللي الامتحان فيه.</p>
           {errors.location && (
             <p role="alert" className="field-error">
               {errors.location}

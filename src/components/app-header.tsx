@@ -5,16 +5,13 @@ import { useRouter } from "next/navigation";
 import { ThemeToggle } from "./theme-toggle";
 import { BrandMark } from "./brand";
 import { post } from "@/lib/client-api";
-import { ROLE_LABELS, type UserRole } from "@/lib/types";
 
 export function AppHeader({
   userEmail,
   userName,
-  role,
 }: {
   userEmail: string;
   userName: string | null;
-  role: UserRole;
 }) {
   const router = useRouter();
 
@@ -39,27 +36,19 @@ export function AppHeader({
           <BrandMark size={36} />
           <span className="min-w-0">
             <span className="block truncate text-sm font-extrabold leading-tight">
-              نظام مراقبو الامتحانات
+              نظام إدارة ومتابعة المراقبين
             </span>
             <span className="block truncate text-[0.68rem] font-semibold leading-tight opacity-80">
-              جامعة حورس — كلية الهندسة
+              قوائم ومتابعة واتساب
             </span>
           </span>
         </Link>
 
         <div className="flex shrink-0 items-center gap-1">
-          {role === "admin" && (
-            <Link href="/admin" className="head-action" title="لوحة التحكم">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden>
-                <path d="M3 13h8V3H3v10Zm0 8h8v-6H3v6Zm10 0h8V11h-8v10Zm0-18v6h8V3h-8Z" />
-              </svg>
-              <span className="head-action-text">لوحة التحكم</span>
-            </Link>
-          )}
-          <span className={`head-role head-role-${role}`} title={`الصلاحية: ${ROLE_LABELS[role]}`}>
-            {ROLE_LABELS[role]}
-          </span>
-          <span className="hidden max-w-40 truncate text-sm opacity-80 lg:block" title={userEmail}>
+          <span
+            className="hidden max-w-40 truncate text-sm opacity-80 lg:block"
+            title={userEmail}
+          >
             {userName ?? userEmail}
           </span>
           <ThemeToggle />

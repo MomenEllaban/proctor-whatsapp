@@ -15,7 +15,7 @@ export function AuthHeading({
       <h1 className="auth-hero-title">{title}</h1>
       <p className="auth-hero-sub">{subtitle}</p>
       <p className="mt-2 mb-0 text-xs font-bold text-brand">
-        جامعة حورس — كلية الهندسة
+        نظام عام لإدارة ومتابعة المستخدمين
       </p>
     </div>
   );

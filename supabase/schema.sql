@@ -8,45 +8,22 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text not null,
   display_name text,
-  role text not null default 'user' check (role in ('admin', 'supervisor', 'user')),
   default_country_code text not null default '20',
   created_at timestamptz not null default now()
 );
 
--- Horus University: only this domain may sign in.
-alter table public.profiles drop constraint if exists profiles_horus_domain_check;
+-- Email format only: no organisation or domain is assumed.
+alter table public.profiles drop constraint if exists profiles_email_shape_check;
 alter table public.profiles
-  add constraint profiles_horus_domain_check
-  check (email is null or email ilike '%@horus.edu.eg') not valid;
-
--- Old installs predate roles: add the column + guard once.
-alter table public.profiles add column if not exists role text;
-update public.profiles set role = 'user' where role is null;
-alter table public.profiles alter column role set default 'user';
-
--- is_admin() helper used by the admin policies below.
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid() and p.role = 'admin'
-  );
-$$;
-
-revoke all on function public.is_admin() from anon;
-grant execute on function public.is_admin() to authenticated;
+  add constraint profiles_email_shape_check
+  check (email is null or email ~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$') not valid;
 
 -- lists (one per user; each has its own message template)
 create table if not exists public.lists (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles (id) on delete cascade,
   title text not null,
-  message_template text not null default E'السلام عليكم ورحمة الله وبركاته، أهلاً {name}\n\nده الجروب الخاص بامتحان EST1\n\nالمكان: Horus University - Faculty of Engineering\n\n📌 رابط الجروب: https://example.com/demo-invite\n\n🗓 موعد الامتحان: يوم الجمعة الموافق 9 أكتوبر 2026\n\n🔔 يرجى تأكيد الحضور بكتابة الاسم الثنائي داخل الجروب.\n\nمع تمنياتنا بالتوفيق، وكل سنة وأنتم طيبين 🌷',
+  message_template text not null default E'السلام عليكم ورحمة الله وبركاته، أهلاً {name}\n\nده الجروب الخاص بامتحان EST1\n\nالمكان: قاعة الامتحانات الرئيسية\n\n📌 رابط الجروب: https://example.com/demo-invite\n\n🗓 موعد الامتحان: يوم الجمعة الموافق 9 أكتوبر 2026\n\n🔔 يرجى تأكيد الحضور بكتابة الاسم الثنائي داخل الجروب.\n\nمع تمنياتنا بالتوفيق، وكل سنة وأنتم طيبين 🌷',
   default_country_code text not null default '20',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -120,25 +97,8 @@ begin
 end;
 $$;
 
--- A user may edit their own profile but never promote themselves.
-create or replace function public.protect_role_change()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if new.role is distinct from old.role and not public.is_admin() then
-    raise exception 'غير مسموح بتغيير الدور — الأدمن فقط.';
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists profiles_protect_role on public.profiles;
-create trigger profiles_protect_role
-  before update on public.profiles
-  for each row execute function public.protect_role_change();
+-- Installs from earlier versions may still carry an unused role column.
+alter table public.profiles drop column if exists role;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -187,13 +147,3 @@ create policy "delete proctors in own lists" on public.proctors
   for delete using (
     exists (select 1 from public.lists l where l.id = list_id and l.owner_id = auth.uid())
   );
-
--- ---------- admin visibility (read-only across the whole platform) ----------
-create policy "admins read all profiles" on public.profiles
-  for select using (public.is_admin());
-
-create policy "admins read all lists" on public.lists
-  for select using (public.is_admin());
-
-create policy "admins read all proctors" on public.proctors
-  for select using (public.is_admin());

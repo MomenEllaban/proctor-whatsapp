@@ -15,7 +15,7 @@ describe("default message template", () => {
       [
         "السلام عليكم ورحمة الله وبركاته، أهلاً {name}",
         "ده الجروب الخاص بامتحان EST1",
-        "المكان: Horus University - Faculty of Engineering",
+        "المكان: قاعة الامتحانات الرئيسية",
         "📌 رابط الجروب: https://example.com/demo-invite",
         "🗓 موعد الامتحان: يوم الجمعة الموافق 9 أكتوبر 2026",
         "🔔 يرجى تأكيد الحضور بكتابة الاسم الثنائي داخل الجروب.",
@@ -51,12 +51,12 @@ describe("default message template", () => {
     expect(parseMessageTemplate(next).exam).toBe("EST2");
   });
 
-  it("normalizes EST2 variants and legacy university suffixes", () => {
-    const legacy = DEFAULT_MESSAGE_TEMPLATE.replace(
+  it("normalizes lowercase exam codes", () => {
+    const lower = DEFAULT_MESSAGE_TEMPLATE.replace(
       "ده الجروب الخاص بامتحان EST1",
-      "ده الجروب الخاص بامتحان est 2 - Horus University.",
+      "ده الجروب الخاص بامتحان est 2",
     );
-    expect(parseMessageTemplate(legacy).exam).toBe("EST2");
+    expect(parseMessageTemplate(lower).exam).toBe("EST2");
   });
 
   it("reports missing values and a malformed group link", () => {

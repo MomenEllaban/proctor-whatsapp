@@ -36,7 +36,7 @@ export default function SignupPage() {
     <div>
       <AuthHeading
         title="إنشاء حساب"
-        subtitle="للمشرفين المعتمدين فقط — البريد الرسمي أو كود دعوة"
+        subtitle="أدخل بريدك الإلكتروني وكلمة مرور، وابدأ الاستخدام"
       />
 
       <form className="card" onSubmit={submit}>
@@ -50,7 +50,7 @@ export default function SignupPage() {
           dir="ltr"
           autoComplete="email"
           required
-          placeholder="name@company.com"
+          placeholder="name@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -93,7 +93,7 @@ export default function SignupPage() {
 
       <p className="text-center text-sm text-muted">
         لديك حساب؟{" "}
-        <Link href="/login" className="inline-flex min-h-11 items-center font-bold text-greend">
+        <Link href="/login" className="inline-flex min-h-11 items-center font-bold text-brand">
           تسجيل الدخول
         </Link>
       </p>

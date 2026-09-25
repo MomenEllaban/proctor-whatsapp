@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "نظام مراقبو الامتحانات — جامعة حورس، كلية الهندسة",
-    short_name: "مراقبو الامتحانات",
+    name: "نظام إدارة ومتابعة المراقبين",
+    short_name: "متابعة المراقبين",
     description:
-      "إدارة قوائم المراقبين وإرسال رسائل WhatsApp مخصصة لكل مراقب بضغطة واحدة. لا يرسل التطبيق أي شيء تلقائيًا.",
+      "نظام عام لإدارة قوائم المراقبين وفتح رسائل WhatsApp مخصصة لكل مراقب بضغطة واحدة. لا يرسل التطبيق أي شيء تلقائيًا.",
     lang: "ar",
     dir: "rtl",
     display: "standalone",
@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/lists",
     scope: "/",
     background_color: "#f1f4f7",
-    theme_color: "#0d2a48",
+    theme_color: "#16273a",
     categories: ["business", "productivity", "utilities"],
     icons: [
       {

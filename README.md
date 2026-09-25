@@ -1,22 +1,22 @@
-# 💬 Proctor WhatsApp — مراقبو الامتحانات
+# 💬 نظام إدارة ومتابعة المراقبين
 
-Multi-user web app for exam-accreditation staff: create proctor lists, store each proctor's
-Egyptian phone number once, and open **a personalized pre-filled WhatsApp message for the
-right proctor with one tap**. The app **never sends** anything automatically — it only opens
-WhatsApp (on the phone) pre-filled with the message, and you press send.
+Generic multi-user web app for any team that tracks people lists: create lists, store each
+person's phone number once, and open **a personalized pre-filled WhatsApp message with one
+tap**. The app **never sends** anything automatically — it only opens WhatsApp pre-filled with
+the message, and you press send. It is not tied to any university or organisation.
 
-تطبيق ويب متعدد المستخدمين لإدارة مراقبي الامتحانات: أنشئ قوائم، احفظ رقم كل مراقب مرة واحدة،
+تطبيق ويب متعدد المستخدمين لإدارة ومتابعة المراقبين: أنشئ قوائم، احفظ رقم كل مراقب مرة واحدة،
 وافتح **رسالة WhatsApp جاهزة ومخصّصة باسم كل مراقب بضغطة واحدة**. التطبيق **لا يرسل** أي شيء
-تلقائيًا — هو يفتح الWhatsApp فقط للشخص الصحيح بالرسالة الجاهزة، وأنت تضغط إرسال.
+تلقائيًا — هو يفتح واتساب فقط بالرسالة الجاهزة، وأنت تضغط إرسال. النظام عام ولا يرتبط بأي
+جهة أو مؤسسة بعينها.
 
 ---
 
 ## 🇪🇬 العربية
 
 ### المميزات
-- 🏛️ هوية **جامعة حورس — كلية الهندسة** (شعار + ألوان كحلي/ذهبي) مع تصميم موبايل أول.
-- 🔐 الحسابات مقصورة على **@horus.edu.eg** (مفروض في التسجيل والدخول) وثلاثة أدوار: **أدمن / مشرف / مستخدم**.
-- 🛠️ **لوحة تحكم للأدمن** (`/admin`): إحصائيات المنصة، تعديل دور أي حساب، ومراقبة كل القوائم.
+- 🖥️ هوية بصرية عامة (شعار محايد + ألوان محايدة) وتصميم موبايل أول بالعربية.
+- 🔐 حسابات مستقلة لكل مستخدم (بيانات كل مستخدم معزولة تمامًا) بدون أي أدوار أو صلاحيات متعددة.
 - 🤖 **مساعد صياغة بالذكاء الاصطناعي**: صياغة رسمية/ودودة/مختصرة مع الحفاظ على المتغيرات.
 - 📇 إضافة المراقبين دفعة واحدة: **من صورة** (تصوير قائمة المراقبين + استخراج تلقائي بالذكاء الاصطناعي Gemini، يدعم صور iPhone .HEIC) أو **نسخ/لصق** من Excel أو Word أو WhatsApp.
 - 🔍 شاشة مراجعة قبل الحفظ: كل صف يظهر بحالته (صالح / رقم ناقص / مكرر) وبتصحيح صيغة الرقم تلقائيًا.
@@ -25,24 +25,28 @@ WhatsApp (on the phone) pre-filled with the message, and you press send.
 - 📱 تصميم موبايل أول بالعربية (RTL) + وضع ليلي/نهاري + PWA قابل للتثبيت.
 - 💾 وضعان: **ديمو محلي صفر إعدادات** (ملف JSON) أو **إنتاجي بـ Supabase** (PostgreSQL + Auth + RLS).
 
-> ⚠️ **خصوصية البيانات**: بيانات الديمو وهمية بالكامل — أسماء عامة (`مستخدم 1`)، أرقام `2010 000 0000`، ورابط دعوة `example.com`. لا يوجد أي اسم حقيقي أو رابط جروب حقيقي في المستودع.
+> ⚠️ **خصوصية البيانات**: بيانات الديمو وهمية بالكامل — أسماء عامة (`مستخدم 1..8`)، أرقام `2010 000 0000`، وإيميلات `user1..user8@example.com`، ورابط دعوة `example.com`. لا يوجد أي اسم حقيقي أو جهة أو رابط حقيقي في المستودع.
 
 ### التشغيل السريع (وضع الديمو)
 > يتطلب Node.js 22.12 أو أحدث. بيانات الديمو في المشروع خيالية ولا تحتوي على أرقام أو روابط حقيقية.
 
 ```bash
 npm ci
-npm run db:seed   # ينشئ 4 حسابات ديمو (أدمن/مشرف/مستخدمين) بقوائم جاهزة
+npm run db:seed   # ينشئ 8 حسابات ديمو (مستخدم 1..8) بقوائم جاهزة
 npm run dev       # http://localhost:3000
 ```
 افتح صفحة تسجيل الدخول — ستجد **أزرار "دخول سريع"** للحسابات التجريبية:
 
-| الحساب | الاسم | الدور |
-|---|---|---|
-| admin@horus.edu.eg | مستخدم 1 | أدمن (لوحة التحكم) |
-| supervisor@horus.edu.eg | مستخدم 2 | مشرف |
-| user1@horus.edu.eg | مستخدم 3 | مستخدم |
-| user2@horus.edu.eg | مستخدم 4 | مستخدم |
+| الحساب | الاسم |
+|---|---|
+| user1@example.com | مستخدم 1 |
+| user2@example.com | مستخدم 2 |
+| user3@example.com | مستخدم 3 |
+| user4@example.com | مستخدم 4 |
+| user5@example.com | مستخدم 5 |
+| user6@example.com | مستخدم 6 |
+| user7@example.com | مستخدم 7 |
+| user8@example.com | مستخدم 8 |
 
 كل الحسابات التجريبية تشترك في نفس كلمة المرور المحلية (`DEMO_PASSWORD`، الافتراضي `demo1234`). لا تُستخدم بيانات الديمو في الإنتاج.
 
@@ -51,8 +55,7 @@ npm run dev       # http://localhost:3000
 |---|---|---|
 | `DATA_PROVIDER` | `demo` للتجربة المحلية، `supabase` للإنتاج | `demo` |
 | `SIGNUP_MODE` | `domain` (نطاقات فقط) / `invite` (كود دعوة) / `open` | `domain` |
-| `ALLOWED_EMAIL_DOMAINS` | النطاقات المسموح بالتسجيل والدخول بها (مفصولة بفواصل) | `horus.edu.eg` |
-| `ADMIN_EMAILS` | إيميلات تُرقّى للأدمن مباشرة (مفصولة بفواصل) | `admin@horus.edu.eg` |
+| `ALLOWED_EMAIL_DOMAINS` | قفل اختياري للنطاقات (فارغ = أي بريد صالح مسموح) | *(فارغ)* |
 | `INVITE_CODE` | كود الدعوة عند `SIGNUP_MODE=invite` | — |
 | `DEMO_PASSWORD` | باسورد كل حسابات الديمو | `demo1234` |
 | `NEXT_PUBLIC_SUPABASE_URL` | معرف مشروع Supabase | — |
@@ -85,7 +88,7 @@ npm run dev       # http://localhost:3000
 ## 🇬🇧 EN
 
 ### Features
-- 🔐 Each supervisor has their own account; data is fully isolated per user.
+- 🔐 Every user has their own account; data is fully isolated per user.
 - 📇 Bulk add proctors: **from a photo** (snap the proctors list → Google Gemini extracts names/phones, HEIC supported) or **paste** text from Excel/Word/WhatsApp.
 - 🔍 Review screen before saving: every row shows its status (valid / missing number / duplicate) with automatic phone-format fixing (Egyptian prefixes 010/011/012/015, Arabic & Persian digits, `0020`/`+20` handled).
 - ✉️ One message template per list with a `{name}` variable + **live WhatsApp-style preview**.
@@ -98,12 +101,12 @@ npm run dev       # http://localhost:3000
 
 ```bash
 npm ci
-npm run db:seed   # creates 4 demo accounts (admin/supervisor/user) with ready lists
+npm run db:seed   # creates 8 demo accounts (user1..user8) with ready lists
 npm run dev       # http://localhost:3000
 ```
-4 demo accounts (admin@horus.edu.eg, supervisor@horus.edu.eg, user1/user2@horus.edu.eg) with
-**one-tap quick-login buttons** on the sign-in page; shared password from `DEMO_PASSWORD`
-(default `demo1234`). Only `@horus.edu.eg` can sign in.
+8 demo accounts (`user1@example.com` … `user8@example.com`) with **one-tap quick-login
+buttons** on the sign-in page; shared password from `DEMO_PASSWORD` (default `demo1234`).
+Any valid email can sign in unless `ALLOWED_EMAIL_DOMAINS` is set.
 
 ### Environment variables
 See `.env.example`. Table with all variables is in the Arabic section above.

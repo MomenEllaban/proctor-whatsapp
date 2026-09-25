@@ -56,7 +56,7 @@ export type MessageVariableErrors = Partial<
 
 export const DEFAULT_MESSAGE_VARIABLES: Readonly<MessageVariables> = {
   exam: "EST1",
-  location: "Horus University - Faculty of Engineering",
+  location: "قاعة الامتحانات الرئيسية",
   /** Reserved example domain: a placeholder, never a real invite link. */
   groupUrl: "https://example.com/demo-invite",
   examDate: "يوم الجمعة الموافق 9 أكتوبر 2026",
@@ -102,13 +102,7 @@ export function parseMessageTemplate(template: string): MessageVariables {
   const groupUrlLine = text.match(/^📌 رابط الجروب:[\t ]*(.*?)\r?$/m)?.[1];
   const examDateLine = text.match(/^🗓 موعد الامتحان:[\t ]*(.*?)\r?$/m)?.[1];
 
-  let exam = examLine ?? DEFAULT_MESSAGE_VARIABLES.exam;
-  // Older lists kept the university at the end of the exam line.
-  exam = exam.replace(
-    /\s*-\s*Horus University(?:\s*-\s*Faculty of Engineering)?\.?\s*$/i,
-    "",
-  );
-  exam = canonicalExam(exam);
+  const exam = canonicalExam(examLine ?? DEFAULT_MESSAGE_VARIABLES.exam);
 
   return {
     exam,

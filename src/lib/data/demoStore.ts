@@ -3,17 +3,8 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isAdminEmail } from "@/lib/env";
 import seedData from "@/lib/demo-seed.json";
-import type {
-  AdminListRow,
-  AdminOverview,
-  AdminUserRow,
-  Proctor,
-  ProctorList,
-  Profile,
-  UserRole,
-} from "@/lib/types";
+import type { Proctor, ProctorList, Profile } from "@/lib/types";
 
 /**
  * Local demo persistence. On Vercel, when a private Blob store is connected,
@@ -94,7 +85,7 @@ export async function loadDb(): Promise<DemoDB> {
   if (usesBlobStore()) {
     try {
       const remote = await readBlobDb();
-      if (remote) return migrateDb(remote);
+      if (remote) return remote;
       const seeded = cloneSeed();
       await writeBlobDb(seeded);
       return seeded;
@@ -119,20 +110,7 @@ export async function loadDb(): Promise<DemoDB> {
     localCache = cloneSeed();
     await saveDb(localCache);
   }
-  return migrateDb(localCache);
-}
-
-/** Older stores predate roles: default every legacy row to a plain user. */
-function migrateDb(db: DemoDB): DemoDB {
-  let changed = false;
-  db.users = (db.users ?? []).map((user) => {
-    if (user.role === "admin" || user.role === "supervisor" || user.role === "user")
-      return user;
-    changed = true;
-    return { ...user, role: "user" as const };
-  });
-  if (changed) void saveDb(db);
-  return db;
+  return localCache;
 }
 
 export async function saveDb(db: DemoDB): Promise<void> {
@@ -157,7 +135,6 @@ export async function upsertUser(
       id,
       email: email.trim().toLowerCase(),
       display_name: displayName?.trim() || "مستخدم",
-      role: isAdminEmail(email) ? "admin" : "user",
       default_country_code: "20",
       created_at: new Date().toISOString(),
     };
@@ -165,67 +142,6 @@ export async function upsertUser(
     await saveDb(db);
   }
   return user;
-}
-
-/* -------------------------------- admin ------------------------------- */
-
-/** Aggregate counters plus one row per user and per list. */
-export async function adminOverview(): Promise<AdminOverview> {
-  const db = await loadDb();
-  const listsByOwner = (ownerId: string) =>
-    db.lists.filter((l) => l.owner_id === ownerId);
-
-  const users: AdminUserRow[] = db.users.map((user) => {
-    const lists = listsByOwner(user.id);
-    const ids = new Set(lists.map((l) => l.id));
-    const proctors = db.proctors.filter((p) => ids.has(p.list_id));
-    return {
-      id: user.id,
-      email: user.email,
-      display_name: user.display_name,
-      role: isAdminEmail(user.email) ? "admin" : user.role,
-      created_at: user.created_at,
-      listCount: lists.length,
-      proctorCount: proctors.length,
-      openedCount: proctors.filter((p) => p.opened_at).length,
-    };
-  });
-
-  const lists: AdminListRow[] = db.lists.map((list) => {
-    const owner = db.users.find((u) => u.id === list.owner_id);
-    const proctors = db.proctors.filter((p) => p.list_id === list.id);
-    return {
-      id: list.id,
-      title: list.title,
-      owner_id: list.owner_id,
-      owner_name: owner?.display_name || owner?.email || "مستخدم",
-      owner_email: owner?.email ?? "",
-      proctorCount: proctors.length,
-      openedCount: proctors.filter((p) => p.opened_at).length,
-      created_at: list.created_at,
-    };
-  });
-
-  return {
-    stats: {
-      users: users.length,
-      lists: lists.length,
-      proctors: db.proctors.length,
-      opened: db.proctors.filter((p) => p.opened_at).length,
-    },
-    users: users.sort((a, b) => a.created_at.localeCompare(b.created_at)),
-    lists: lists.sort((a, b) => b.created_at.localeCompare(a.created_at)),
-  };
-}
-
-/** Updates a role. Admin allow-list emails can never be demoted. */
-export async function setUserRole(userId: string, role: UserRole): Promise<boolean> {
-  const db = await loadDb();
-  const user = db.users.find((u) => u.id === userId);
-  if (!user || isAdminEmail(user.email)) return false;
-  user.role = role;
-  await saveDb(db);
-  return true;
 }
 
 export async function listOf(userId: string): Promise<ProctorList[]> {

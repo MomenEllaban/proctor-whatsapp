@@ -10,7 +10,6 @@ export const dynamic = "force-dynamic";
 export default async function ListsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-
   const lists = await listLists(user);
   const summaries: ListSummary[] = await Promise.all(
     lists.map(async (l) => {

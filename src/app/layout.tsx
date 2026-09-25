@@ -15,17 +15,17 @@ const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(!t)
 
 export const metadata: Metadata = {
   title: {
-    default: "نظام مراقبو الامتحانات — جامعة حورس، كلية الهندسة",
-    template: "%s | نظام مراقبو الامتحانات",
+    default: "نظام إدارة ومتابعة المراقبين",
+    template: "%s | نظام إدارة ومتابعة المراقبين",
   },
   description:
-    "نظام مراقبو امتحانات جامعة حورس – كلية الهندسة: قوائم مراقبين ورسائل WhatsApp مخصصة بضغطة واحدة. لا يرسل أي رسالة تلقائيًا.",
-  applicationName: "نظام مراقبو الامتحانات",
+    "نظام عام لإدارة ومتابعة المراقبين: قوائم مراقبين ورسائل WhatsApp مخصصة بضغطة واحدة. لا يرسل أي رسالة تلقائيًا.",
+  applicationName: "نظام إدارة ومتابعة المراقبين",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "مراقبو الامتحانات",
+    title: "متابعة المراقبين",
   },
   icons: {
     icon: [
@@ -38,8 +38,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0d2a48" },
-    { media: "(prefers-color-scheme: dark)", color: "#081827" },
+    { media: "(prefers-color-scheme: light)", color: "#16273a" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d1622" },
   ],
   width: "device-width",
   initialScale: 1,

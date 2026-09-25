@@ -4,11 +4,8 @@ const configuredProvider = process.env.DATA_PROVIDER?.trim().toLowerCase();
 const dataProvider =
   configuredProvider || (process.env.VERCEL ? "supabase" : "demo");
 const signupMode = process.env.SIGNUP_MODE?.trim().toLowerCase() || "domain";
-/** Horus University is the only accepted domain unless overridden explicitly. */
-const allowedEmailDomains = list(
-  process.env.ALLOWED_EMAIL_DOMAINS || "horus.edu.eg",
-);
-const adminEmails = list(process.env.ADMIN_EMAILS || "admin@horus.edu.eg");
+/** Empty by default: any valid email can sign in. Set it to lock the system down. */
+const allowedEmailDomains = list(process.env.ALLOWED_EMAIL_DOMAINS);
 const inviteCode = process.env.INVITE_CODE?.trim() || "";
 
 if (dataProvider !== "demo" && dataProvider !== "supabase") {
@@ -40,7 +37,6 @@ export const env = {
   dataProvider,
 
   allowedEmailDomains,
-  adminEmails,
   inviteCode,
   signupMode,
 
@@ -59,35 +55,38 @@ export const env = {
 
 export const isDemo = env.dataProvider === "demo";
 
-/** True when the address belongs to one of the allowed university domains. */
+/**
+ * True when the address may sign in. Open by default: any valid email is
+ * accepted unless ALLOWED_EMAIL_DOMAINS is configured.
+ */
 export function isAllowedDomain(email: string): boolean {
   const clean = String(email ?? "").trim().toLowerCase();
-  if (!clean) return false;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return false;
+  if (!env.allowedEmailDomains.length) return true;
   return env.allowedEmailDomains.some((domain) =>
     clean.endsWith("@" + domain.replace(/^@/, "")),
   );
 }
 
-/** Emails promoted to admin without touching the database. */
-export function isAdminEmail(email: string): boolean {
-  const clean = String(email ?? "").trim().toLowerCase();
-  return env.adminEmails.includes(clean);
+/** Human-readable list of the locked domains, or null when the system is open. */
+export function lockedDomainsHint(): string | null {
+  if (!env.allowedEmailDomains.length) return null;
+  return env.allowedEmailDomains
+    .map((domain) => "@" + domain.replace(/^@/, ""))
+    .join(" أو ");
 }
 
 /**
- * Sign-up policy: the university domain is always enforced, and when
- * SIGNUP_MODE=invite an invite code is required on top of it.
- * Returns an Arabic error message or null when the request is allowed.
+ * Sign-up policy: an optional domain lock, plus an invite code when
+ * SIGNUP_MODE=invite. Returns an Arabic error message or null when allowed.
  */
 export function authPolicyError(
   email: string,
   invite: string,
 ): string | null {
   if (!isAllowedDomain(email)) {
-    const allowed = env.allowedEmailDomains
-      .map((domain) => "@" + domain.replace(/^@/, ""))
-      .join(" أو ");
-    return `البريد الإلكتروني غير مسموح — الحسابات متاحة لـ ${allowed} فقط.`;
+    const hint = lockedDomainsHint() ?? "النطاق المسموح";
+    return `البريد الإلكتروني غير مسموح — الحسابات متاحة لـ ${hint} فقط.`;
   }
   if (env.signupMode === "open") return null;
   if (env.signupMode === "invite") {

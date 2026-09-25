@@ -57,23 +57,23 @@ export function ListsDashboard({
         </Link>
       </section>
 
-      <section className="admin-stats" aria-label="إحصائياتك">
-        <div className="admin-stat">
+      <section className="stats-grid" aria-label="إحصائياتك">
+        <div className="stat-tile">
           <b>{lists.length}</b>
           <span>قوائم</span>
           <small>امتحانات ولجان</small>
         </div>
-        <div className="admin-stat">
+        <div className="stat-tile">
           <b>{totals.proctors}</b>
           <span>مراقب</span>
           <small>أرقام وهمية</small>
         </div>
-        <div className="admin-stat">
+        <div className="stat-tile">
           <b>{totals.opened}</b>
           <span>تم الفتح</span>
           <small>فتح واتساب</small>
         </div>
-        <div className="admin-stat">
+        <div className="stat-tile">
           <b>{lists.length ? Math.round((totals.opened / Math.max(totals.proctors, 1)) * 100) : 0}%</b>
           <span>نسبة البدء</span>
           <small>من كل القوائم</small>
@@ -141,8 +141,8 @@ export function ListsDashboard({
       </ul>
 
       <p className="text-center text-xs text-muted">
-        نظام مراقبو الامتحانات — جامعة حورس، كلية الهندسة. يفتح WhatsApp فقط ولا
-        يرسل أي رسالة تلقائيًا، وكل البيانات المعروضة أمثلة وهمية.
+        نظام عام لإدارة ومتابعة المراقبين. يفتح WhatsApp فقط ولا يرسل أي رسالة
+        تلقائيًا، وكل البيانات المعروضة أمثلة وهمية.
       </p>
     </div>
   );

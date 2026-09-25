@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { env, isDemo, isAllowedDomain } from "@/lib/env";
+import { isDemo, isAllowedDomain, lockedDomainsHint } from "@/lib/env";
 import { demoLogin } from "@/lib/data";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -18,10 +18,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "أدخل البريد الإلكتروني وكلمة المرور" }, { status: 400 });
   }
 
-  // The university domain is enforced on every sign-in attempt.
-  if (!isAllowedDomain(String(email))) {
+  // Optional domain lock: open by default, any valid email can sign in.
+  const hint = lockedDomainsHint();
+  if (hint && !isAllowedDomain(String(email))) {
     return NextResponse.json(
-      { error: `الحسابات متاحة لـ ${env.allowedEmailDomains.map((d) => "@" + d).join(" أو ")} فقط.` },
+      { error: `الحسابات متاحة لـ ${hint} فقط.` },
       { status: 403 },
     );
   }
