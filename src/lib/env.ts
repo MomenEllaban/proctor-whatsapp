@@ -48,8 +48,9 @@ export const env = {
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
 
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
-  anthropicModel: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+  geminiApiKey: process.env.GEMINI_API_KEY || "",
+  geminiModel: process.env.GEMINI_MODEL || "gemini-flash-latest",
+  geminiProjectId: process.env.GEMINI_PROJECT_ID || "",
 
   /** Demo mode is local-only: shared password seeds every demo account. */
   demoPassword: process.env.DEMO_PASSWORD || "demo1234",

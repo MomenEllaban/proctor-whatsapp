@@ -15,7 +15,7 @@ WhatsApp (on the phone) pre-filled with the message, and you press send.
 
 ### المميزات
 - 🔐 حساب مستقل لكل مشرف (بياناته معزولة تمامًا عن غيره).
-- 📇 إضافة المراقبين دفعة واحدة: **من صورة** (تصوير قائمة المراقبين + استخراج تلقائي بالذكاء الاصطناعي Claude، يدعم صور iPhone .HEIC) أو **نسخ/لصق** من Excel أو Word أو WhatsApp.
+- 📇 إضافة المراقبين دفعة واحدة: **من صورة** (تصوير قائمة المراقبين + استخراج تلقائي بالذكاء الاصطناعي Gemini، يدعم صور iPhone .HEIC) أو **نسخ/لصق** من Excel أو Word أو WhatsApp.
 - 🔍 شاشة مراجعة قبل الحفظ: كل صف يظهر بحالته (صالح / رقم ناقص / مكرر) وبتصحيح صيغة الرقم تلقائيًا.
 - ✉️ قالب رسالة واحد للقائمة مع متغير `{name}` + **معاينة حية** بشكل محادثة WhatsApp.
 - 🟢 زر "فتح WhatsApp": يفتح المحادثة للمرافق المطلوب مباشرة (على الموبايل عبر `wa.me`، على الكمبيوتر عبر رابط الويب)، ومتابعة أرقام تم فتحها وReset.
@@ -58,8 +58,9 @@ npm run dev       # http://localhost:3000
 | `NEXT_PUBLIC_SUPABASE_URL` | معرف مشروع Supabase | — |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | المفتاح العام للتطبيق | — |
 | `SUPABASE_SERVICE_ROLE_KEY` | مفتاح الخدمة (خدمة الإحصائيات/الحذف) | — |
-| `ANTHROPIC_API_KEY` | مفتاح Claude لاستخراج الأسماء/الأرقام من الصور والنص | — |
-| `ANTHROPIC_MODEL` | موديل Claude المستخدم | `claude-sonnet-4-5` |
+| `GEMINI_API_KEY` | مفتاح Google Gemini لاستخراج الأسماء/الأرقام من الصور والنص | — |
+| `GEMINI_MODEL` | موديل Gemini المستخدم | `gemini-flash-latest` |
+| `GEMINI_PROJECT_ID` | معرّف مشروع Google الاختياري | — |
 
 ### الإنتاجي بـ Supabase
 1. أنشئ مشروعًا على [supabase.com](https://supabase.com) ونفّذ `supabase/schema.sql` في SQL Editor.
@@ -84,7 +85,7 @@ npm run dev       # http://localhost:3000
 
 ### Features
 - 🔐 Each supervisor has their own account; data is fully isolated per user.
-- 📇 Bulk add proctors: **from a photo** (snap the proctors list → Claude AI extracts names/phones, HEIC supported) or **paste** text from Excel/Word/WhatsApp.
+- 📇 Bulk add proctors: **from a photo** (snap the proctors list → Google Gemini extracts names/phones, HEIC supported) or **paste** text from Excel/Word/WhatsApp.
 - 🔍 Review screen before saving: every row shows its status (valid / missing number / duplicate) with automatic phone-format fixing (Egyptian prefixes 010/011/012/015, Arabic & Persian digits, `0020`/`+20` handled).
 - ✉️ One message template per list with a `{name}` variable + **live WhatsApp-style preview**.
 - 🟢 "Open WhatsApp" button: opens the chat for that specific proctor (mobile `wa.me` / desktop web), with opened-tracking and reset.
@@ -123,4 +124,4 @@ npm run check
 ---
 
 Built with Next.js (App Router + Turbopack), React 19, Tailwind v4, TypeScript, Vitest,
-Supabase, and Anthropic Claude.
+Supabase, and Google Gemini.
