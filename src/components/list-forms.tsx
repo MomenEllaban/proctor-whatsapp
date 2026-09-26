@@ -1,17 +1,34 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TemplateEditor } from "./template-editor";
 import { post, patch, del } from "@/lib/client-api";
-import { DEFAULT_MESSAGE_TEMPLATE, isValidMessageTemplate } from "@/lib/message";
+import { useHydrated } from "@/lib/use-hydrated";
+import {
+  DEFAULT_MESSAGE_TEMPLATE,
+  isValidMessageTemplate,
+  syncAutoExamDateTemplate,
+} from "@/lib/message";
 import type { ProctorList } from "@/lib/types";
+
+/**
+ * An exam date left over from an earlier round moves to the current round as soon
+ * as the form is open, so an old list never keeps advertising a past session. A
+ * date the user typed themselves is left alone. The swap waits for hydration
+ * because the current round depends on the client's calendar day.
+ */
+function useCurrentExamRound(edited: string): string {
+  const hydrated = useHydrated();
+  return hydrated ? syncAutoExamDateTemplate(edited) : edited;
+}
 
 /** Create a new list, one clear step at a time. */
 export function CreateListForm() {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [template, setTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
+  const [editedTemplate, setEditedTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
+  const template = useCurrentExamRound(editedTemplate);
   const [error, setError] = useState("");
   const [templateError, setTemplateError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -114,7 +131,7 @@ export function CreateListForm() {
         <TemplateEditor
           value={template}
           onChange={(next) => {
-            setTemplate(next);
+            setEditedTemplate(next);
             setTemplateError("");
           }}
         />
@@ -141,11 +158,12 @@ export function CreateListForm() {
 export function EditListForm({ list }: { list: ProctorList }) {
   const router = useRouter();
   const [title, setTitle] = useState(list.title);
-  const [template, setTemplate] = useState(
+  const [editedTemplate, setEditedTemplate] = useState(
     list.message_template?.trim()
       ? list.message_template
       : DEFAULT_MESSAGE_TEMPLATE,
   );
+  const template = useCurrentExamRound(editedTemplate);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [titleError, setTitleError] = useState("");
@@ -228,7 +246,7 @@ export function EditListForm({ list }: { list: ProctorList }) {
         <TemplateEditor
           value={template}
           onChange={(next) => {
-            setTemplate(next);
+            setEditedTemplate(next);
             setTemplateError("");
           }}
         />

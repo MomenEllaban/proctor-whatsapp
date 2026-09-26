@@ -2,15 +2,20 @@
 
 import { useState } from "react";
 import { post } from "@/lib/client-api";
+import { useHydrated } from "@/lib/use-hydrated";
 import {
+  autoExamDate,
   buildMessageTemplate,
   DEFAULT_MESSAGE_TEMPLATE,
+  defaultMessageTemplate,
   detectMessageStyle,
   EXAM_OPTIONS,
+  formatExamDate,
   MESSAGE_STYLE_LABELS,
   MESSAGE_STYLES,
   NAME_PLACEHOLDER,
   parseMessageTemplate,
+  resolveExamRound,
   validateMessageVariables,
   type MessageStyle,
   type MessageVariableKey,
@@ -43,11 +48,23 @@ export function TemplateEditor({
     : "custom";
   const hasChanges = value !== DEFAULT_MESSAGE_TEMPLATE;
 
+  // The automatic date depends on today's calendar day, so it is only read
+  // after hydration to keep the server and client markup identical.
+  const hydrated = useHydrated();
+  const autoDate = hydrated ? autoExamDate(variables.exam) : null;
+  const dateIsAuto = !!autoDate && variables.examDate.trim() === autoDate;
+  const suggestedDate = autoDate && !dateIsAuto ? autoDate : null;
+  const round = hydrated ? resolveExamRound() : null;
+
   const updateVariable = (
     key: MessageVariableKey,
     nextValue: string,
   ): void => {
     const next: MessageVariables = { ...variables, [key]: nextValue };
+    if (key === "exam") {
+      const auto = nextValue.trim() ? autoExamDate(nextValue) : null;
+      if (auto) next.examDate = auto;
+    }
     onChange(buildMessageTemplate(next, style));
   };
 
@@ -93,7 +110,7 @@ export function TemplateEditor({
           onClick={() => {
             setStyle("formal");
             setAiNote("");
-            onChange(DEFAULT_MESSAGE_TEMPLATE);
+            onChange(defaultMessageTemplate());
           }}
           disabled={!hasChanges}
         >
@@ -167,7 +184,7 @@ export function TemplateEditor({
             <option value="custom">امتحان آخر…</option>
           </select>
           <p id="template-exam-help" className="template-help">
-            اختر الامتحان أو اكتب اسمًا مختلفًا.
+            اختر الامتحان — تاريخ الامتحان هيتكتب لوحده من الجدول.
           </p>
           {errors.exam && (
             <p role="alert" className="field-error">
@@ -244,7 +261,11 @@ export function TemplateEditor({
         <div className="template-field">
           <label className="template-label" htmlFor="template-date">
             <span>موعد الامتحان</span>
-            <span className="variable-tag">متغير</span>
+            {dateIsAuto ? (
+              <span className="auto-tag">تلقائي</span>
+            ) : (
+              <span className="variable-tag">متغير</span>
+            )}
           </label>
           <input
             id="template-date"
@@ -253,9 +274,29 @@ export function TemplateEditor({
             onChange={(event) => updateVariable("examDate", event.target.value)}
             placeholder="يوم الجمعة الموافق 9 أكتوبر 2026"
             aria-invalid={!!errors.examDate}
+            aria-describedby="template-date-help"
             autoComplete="off"
           />
-          <p className="template-help">اكتبه زي ما عايز يظهر في الرسالة.</p>
+          <p id="template-date-help" className="template-help">
+            {autoDate
+              ? "التاريخ ده اتكتب أوتوماتيك من جدول الامتحانات — تقدر تعدّله."
+              : "اكتبه زي ما عايز يظهر في الرسالة."}
+          </p>
+          {round && (
+            <p className="template-help">
+              الدورة الحالية: EST1 = {formatExamDate(round.est1)} · EST2 ={" "}
+              {formatExamDate(round.est2)}
+            </p>
+          )}
+          {suggestedDate && (
+            <button
+              type="button"
+              className="chip"
+              onClick={() => updateVariable("examDate", suggestedDate)}
+            >
+              ↻ استخدم {suggestedDate}
+            </button>
+          )}
           {errors.examDate && (
             <p role="alert" className="field-error">
               {errors.examDate}
