@@ -29,6 +29,24 @@ create table if not exists public.lists (
   updated_at timestamptz not null default now()
 );
 
+-- Read-only share link. The token is 96 bits of pgcrypto randomness, so the
+-- /s/<token> page is unguessable; share_enabled lets the owner cut access off
+-- without rotating the token.
+alter table public.lists add column if not exists share_token text;
+alter table public.lists
+  add column if not exists share_enabled boolean not null default false;
+
+-- Backfill tokens for lists created before sharing existed.
+update public.lists
+   set share_token = encode(gen_random_bytes(12), 'hex')
+ where share_token is null;
+
+alter table public.lists
+  alter column share_token set default encode(gen_random_bytes(12), 'hex');
+
+create unique index if not exists lists_share_token_idx
+  on public.lists (share_token);
+
 -- proctors
 create table if not exists public.proctors (
   id uuid primary key default gen_random_uuid(),
@@ -78,6 +96,115 @@ $$;
 
 revoke all on function public.increment_proctor_opened(uuid) from anon;
 grant execute on function public.increment_proctor_opened(uuid) to authenticated;
+
+-- ------------------------------------------------------------------ sharing --
+-- The public page is served with the anon key, which RLS blocks from every
+-- table. These SECURITY DEFINER functions are the one sanctioned way past it:
+-- each takes the unguessable share token, returns only the columns the shared
+-- page needs, and refuses when sharing is off. No table policy is widened, so
+-- nothing else becomes anonymously readable.
+
+create or replace function public.get_shared_list(p_token text)
+returns table (id uuid, title text, message_template text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select l.id, l.title, l.message_template
+    from public.lists l
+   where l.share_token = p_token
+     and l.share_enabled
+   limit 1;
+$$;
+
+create or replace function public.get_shared_proctors(p_token text)
+returns table (id uuid, name text, phone text, opened_at timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.id, p.name, p.phone, p.opened_at
+    from public.proctors p
+    join public.lists l on l.id = p.list_id
+   where l.share_token = p_token
+     and l.share_enabled
+   order by p.sort_order asc, p.created_at asc;
+$$;
+
+-- Open tracking from the public page, where nobody is signed in. The proctor
+-- id is scoped to the token's own list, so a token cannot touch other lists.
+create or replace function public.record_shared_open(
+  p_token text,
+  p_proctor_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_list_id uuid;
+begin
+  select l.id into v_list_id
+    from public.lists l
+   where l.share_token = p_token
+     and l.share_enabled;
+
+  if v_list_id is null then
+    return false;
+  end if;
+
+  update public.proctors p
+     set opened_at = now(),
+         opened_count = p.opened_count + 1
+   where p.id = p_proctor_id
+     and p.list_id = v_list_id;
+
+  return found;
+end;
+$$;
+
+-- Owner-only. SECURITY DEFINER purely to mint a fresh random token in one
+-- round trip; the owner check is done explicitly against auth.uid().
+create or replace function public.rotate_list_share_token(p_list_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner uuid;
+  v_token text;
+begin
+  select l.owner_id into v_owner
+    from public.lists l
+   where l.id = p_list_id;
+
+  if v_owner is null or v_owner is distinct from auth.uid() then
+    raise exception 'غير مسموح' using errcode = '42501';
+  end if;
+
+  v_token := encode(gen_random_bytes(12), 'hex');
+
+  update public.lists
+     set share_token = v_token
+   where id = p_list_id;
+
+  return v_token;
+end;
+$$;
+
+revoke all on function public.get_shared_list(text) from public;
+revoke all on function public.get_shared_proctors(text) from public;
+revoke all on function public.record_shared_open(text, uuid) from public;
+revoke all on function public.rotate_list_share_token(uuid) from public;
+
+grant execute on function public.get_shared_list(text) to anon, authenticated;
+grant execute on function public.get_shared_proctors(text) to anon, authenticated;
+grant execute on function public.record_shared_open(text, uuid) to anon, authenticated;
+grant execute on function public.rotate_list_share_token(uuid) to authenticated;
 
 -- auto-create a profile row when a user signs up
 create or replace function public.handle_new_user()

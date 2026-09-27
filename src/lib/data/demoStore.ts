@@ -1,10 +1,17 @@
 import { get, put } from "@vercel/blob";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import seedData from "@/lib/demo-seed.json";
-import type { Proctor, ProctorList, Profile } from "@/lib/types";
+import type {
+  Proctor,
+  ProctorList,
+  Profile,
+  ShareState,
+  SharedList,
+  SharedProctor,
+} from "@/lib/types";
 
 /**
  * Local demo persistence. On Vercel, when a private Blob store is connected,
@@ -25,6 +32,8 @@ const BLOB_PATH = "proctor-whatsapp/demo-db.json";
 const SEED_VERSION = 2;
 let DB_FILE: string | null = null;
 let localCache: DemoDB | null = null;
+/** Identity of the file localCache was built from; see readLocalDb(). */
+let localCacheStamp = "";
 
 function dbFile(): string {
   if (DB_FILE) return DB_FILE;
@@ -49,7 +58,35 @@ function usesBlobStore(): boolean {
 }
 
 function cloneSeed(): DemoDB {
-  return { ...(JSON.parse(JSON.stringify(seedData)) as DemoDB), seed_version: SEED_VERSION };
+  return normalizeShareFields({
+    ...(JSON.parse(JSON.stringify(seedData)) as DemoDB),
+    seed_version: SEED_VERSION,
+  });
+}
+
+/** 96 bits of randomness, same shape as the Postgres default. */
+export function genShareToken(): string {
+  return randomBytes(12).toString("hex");
+}
+
+/**
+ * Seeded lists predate the share columns, so fill them in on read rather than
+ * forcing a seed-version bump (which would throw away existing demo accounts).
+ */
+function normalizeShareFields(db: DemoDB): DemoDB {
+  const taken = new Set<string>();
+  for (const list of db.lists) {
+    if (typeof list.share_token !== "string" || !list.share_token) {
+      let token = genShareToken();
+      while (taken.has(token)) token = genShareToken();
+      list.share_token = token;
+    }
+    if (typeof list.share_enabled !== "boolean") {
+      list.share_enabled = false;
+    }
+    taken.add(list.share_token);
+  }
+  return db;
 }
 
 /** Stale stores (older deploys, old blob) are replaced by the current seed. */
@@ -90,11 +127,51 @@ export function hashPassword(password: string): string {
   return createHash("sha256").update(password).digest("hex");
 }
 
+/**
+ * Next bundles each route separately, so `localCache` here is per bundle, not
+ * per process: the share page and the API routes that write to the demo db do
+ * not share it. Re-reading whenever the file on disk changes keeps them in
+ * step — without it a visitor would be served a stale (or wrongly disabled)
+ * share link after the owner toggled it.
+ */
+function readLocalDb(file: string): DemoDB | null {
+  let stamp: string;
+  try {
+    const stat = fs.statSync(file);
+    stamp = `${stat.mtimeMs}:${stat.size}`;
+  } catch {
+    return null;
+  }
+  if (localCache && stamp === localCacheStamp) return localCache;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as DemoDB;
+    if (!isCurrentSeed(parsed)) {
+      console.info("[demo-store] stale local demo db detected; reseeding with current data");
+      localCache = null;
+      localCacheStamp = "";
+      return null;
+    }
+    localCache = parsed;
+    localCacheStamp = stamp;
+    return parsed;
+  } catch {
+    localCache = null;
+    localCacheStamp = "";
+    return null;
+  }
+}
+
 export async function loadDb(): Promise<DemoDB> {
   if (usesBlobStore()) {
     try {
       const remote = await readBlobDb();
-      if (isCurrentSeed(remote)) return remote as DemoDB;
+      if (isCurrentSeed(remote)) {
+        const db = remote as DemoDB;
+        const needsSave = hasMissingShareFields(db);
+        normalizeShareFields(db);
+        if (needsSave) await writeBlobDb(db);
+        return db;
+      }
       if (remote) {
         console.info("[demo-store] stale demo db detected; reseeding with current data");
       }
@@ -109,26 +186,26 @@ export async function loadDb(): Promise<DemoDB> {
     }
   }
 
-  if (localCache) return localCache;
-  const file = dbFile();
-  if (fs.existsSync(file)) {
-    try {
-      const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as DemoDB;
-      if (isCurrentSeed(parsed)) {
-        localCache = parsed;
-      } else {
-        console.info("[demo-store] stale local demo db detected; reseeding with current data");
-        localCache = null;
-      }
-    } catch {
-      localCache = null;
+  const existing = readLocalDb(dbFile());
+  if (existing) {
+    if (hasMissingShareFields(existing)) {
+      normalizeShareFields(existing);
+      await saveDb(existing);
     }
+    return existing;
   }
-  if (!localCache) {
-    localCache = cloneSeed();
-    await saveDb(localCache);
-  }
+  localCache = cloneSeed();
+  await saveDb(localCache);
   return localCache;
+}
+
+function hasMissingShareFields(db: DemoDB): boolean {
+  return db.lists.some(
+    (l) =>
+      typeof l.share_token !== "string" ||
+      !l.share_token ||
+      typeof l.share_enabled !== "boolean",
+  );
 }
 
 export async function saveDb(db: DemoDB): Promise<void> {
@@ -139,6 +216,12 @@ export async function saveDb(db: DemoDB): Promise<void> {
   localCache = db;
   fs.mkdirSync(path.dirname(dbFile()), { recursive: true });
   fs.writeFileSync(dbFile(), JSON.stringify(db, null, 2), "utf8");
+  try {
+    const stat = fs.statSync(dbFile());
+    localCacheStamp = `${stat.mtimeMs}:${stat.size}`;
+  } catch {
+    localCacheStamp = "";
+  }
 }
 
 export async function upsertUser(
@@ -191,6 +274,8 @@ export async function createList(
     default_country_code: data.default_country_code || "20",
     created_at: now,
     updated_at: now,
+    share_token: genShareToken(),
+    share_enabled: false,
   };
   db.lists.push(list);
   await saveDb(db);
@@ -343,4 +428,93 @@ export async function resetListOpened(
 
 export function genId(): string {
   return "x" + createHash("sha256").update(Date.now() + Math.random().toString()).digest("hex").slice(0, 16);
+}
+
+/* -------------------------------- share -------------------------------- */
+
+export async function getShare(
+  userId: string,
+  listId: string,
+): Promise<ShareState | null> {
+  const db = await loadDb();
+  const list = db.lists.find((x) => x.id === listId && x.owner_id === userId);
+  if (!list) return null;
+  normalizeShareFields(db);
+  return { share_token: list.share_token, share_enabled: list.share_enabled };
+}
+
+export async function setShareEnabled(
+  userId: string,
+  listId: string,
+  enabled: boolean,
+): Promise<ShareState | null> {
+  const db = await loadDb();
+  const list = db.lists.find((x) => x.id === listId && x.owner_id === userId);
+  if (!list) return null;
+  if (!list.share_token) list.share_token = genShareToken();
+  list.share_enabled = enabled;
+  list.updated_at = new Date().toISOString();
+  await saveDb(db);
+  return { share_token: list.share_token, share_enabled: list.share_enabled };
+}
+
+export async function rotateShareToken(
+  userId: string,
+  listId: string,
+): Promise<string | null> {
+  const db = await loadDb();
+  const list = db.lists.find((x) => x.id === listId && x.owner_id === userId);
+  if (!list) return null;
+  let token = genShareToken();
+  while (db.lists.some((x) => x.id !== listId && x.share_token === token)) {
+    token = genShareToken();
+  }
+  list.share_token = token;
+  list.updated_at = new Date().toISOString();
+  await saveDb(db);
+  return token;
+}
+
+/** Mirrors get_shared_list + get_shared_proctors: enabled token only. */
+export async function getSharedByToken(
+  token: string,
+): Promise<{ list: SharedList; proctors: SharedProctor[] } | null> {
+  const db = await loadDb();
+  const list = db.lists.find((x) => x.share_token === token && x.share_enabled);
+  if (!list) return null;
+  const proctors = db.proctors
+    .filter((p) => p.list_id === list.id)
+    .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at))
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      phone: p.phone,
+      opened_at: p.opened_at,
+    }));
+  return {
+    list: {
+      id: list.id,
+      title: list.title,
+      message_template: list.message_template,
+    },
+    proctors,
+  };
+}
+
+/** Mirrors record_shared_open: the proctor must belong to the token's list. */
+export async function markSharedOpened(
+  token: string,
+  proctorId: string,
+): Promise<boolean> {
+  const db = await loadDb();
+  const list = db.lists.find((x) => x.share_token === token && x.share_enabled);
+  if (!list) return false;
+  const proctor = db.proctors.find(
+    (p) => p.id === proctorId && p.list_id === list.id,
+  );
+  if (!proctor) return false;
+  proctor.opened_at = new Date().toISOString();
+  proctor.opened_count += 1;
+  await saveDb(db);
+  return true;
 }

@@ -22,6 +22,7 @@ the message, and you press send. It is not tied to any university or organisatio
 - 🔍 شاشة مراجعة قبل الحفظ: كل صف يظهر بحالته (صالح / رقم ناقص / مكرر) وبتصحيح صيغة الرقم تلقائيًا.
 - ✉️ قالب رسالة جاهز بالفعل (مفيش رسالة فاضية): المستخدم بيغيّر **4 متغيرات فقط** (الامتحان، المكان، رابط الجروب، الموعد) + معاينة حية بشكل محادثة WhatsApp.
 - 🟢 زر "فتح WhatsApp": يفتح المحادثة للمرافق المطلوب مباشرة (على الموبايل عبر `wa.me`، على الكمبيوتر عبر رابط الويب)، ومتابعة أرقام تم فتحها وReset.
+- 🔗 **لينك مشاركة لكل قائمة**: تشغّل المشاركة تاخد لينك `/s/<token>` تبعتو لأي حد، وهو بيفتح **من غير تسجيل دخول** ويشوف الاسم والرقم ويضغط زرار واحد فيفتح له واتساب برسالتك جاهزة. مع زرار **إيقاف/تشغيل** و**تغيير اللينك** (يوقف كل النسخ القديمة فورًا)، وتسجيل لكل فتح حتى من غير لوجين.
 - 📱 تصميم موبايل أول بالعربية (RTL) + وضع ليلي/نهاري + PWA قابل للتثبيت.
 - 💾 وضعان: **ديمو محلي صفر إعدادات** (ملف JSON) أو **إنتاجي بـ Supabase** (PostgreSQL + Auth + RLS).
 
@@ -66,6 +67,14 @@ npm run dev       # http://localhost:3000
 | `GEMINI_FALLBACK_MODEL` | موديل بديل عند ازدحام النموذج الرئيسي | `gemini-3.1-flash-lite` |
 | `GEMINI_PROJECT_ID` | معرّف مشروع Google الاختياري | — |
 
+### لينك المشاركة (Share Link)
+- كل قائمة عندها `share_token` عشوائي (96 بت) وعلم `share_enabled`.
+- بعد ما تفتح **«مشاركة القائمة»** في صفحة اللست، اضغط **«تشغيل المشاركة»** وانسخ اللينك. حد عنده اللينك بيفتح `/s/<token>` **من غير حساب ولا تسجيل دخول**، ويشوف الاسم والرقم وزرار «فتح WhatsApp» فقط (مفيش تعديل ولا حذف ولا استيراد).
+- **إيقاف المشاركة** بيخلي نفس اللينك يرد «اللينك مش شغال» — من غير ما تبعت رسالة لكل الناس.
+- **تغيير اللينك** بيعمل token جديد ويقتل كل النسخ القديمة فورًا (استخدمه لو اللينك نشر).
+- كل ضغطة على «فتح WhatsApp» من اللينك العام بتتسجل عند صاحب القائمة (حتى بدون لوجين).
+- **مهم:** التشغيل بيحتاج الـ SQL الجديد في `supabase/schema.sql` (أعمدة `share_token`/`share_enabled` + 4 دوال). الملف idempotent، فتقدر تشغّله تاني على قاعدة موجودة من غير ما يمسح بياناتك.
+
 ### الإنتاجي بـ Supabase
 1. أنشئ مشروعًا على [supabase.com](https://supabase.com) ونفّذ `supabase/schema.sql` في SQL Editor.
 2. اضبط المتغيرات أعلاه واختر `DATA_PROVIDER=supabase`.
@@ -81,6 +90,7 @@ npm run dev       # http://localhost:3000
 - بيانات الديمو خيالية، وملفات `.env` و`data/` مستبعدة من Git.
 - الصور المرفوعة للاستخراج تُرسل للنموذج عبر `base64` **ولا تُحفظ على أي قرص**.
 - التطبيق لا يمتلك أي تكامل مع WhatsApp API — يفتح الرابط فقط، فما زال الإنسان هو من يضغط "إرسال".
+- **اللينك العام**: التوكن عشوائي 96 بت، والقراءة تتم عبر 4 دوال `SECURITY DEFINER` بيشترطوا التوكن + `share_enabled` — مفيش أي policy اتوسعت لـ `anon` على الجداول، فمفيش حاجة تانية بقت مقروءة للزائر. الزائر يشوف الاسم والرقم فقط، ومفيش تعديل ولا حذف.
 - قبل الإنتاج: شغّل `supabase/schema.sql`، واضبط النطاقات/كود الدعوة، وراجع RLS والصلاحيات.
 
 ---
@@ -93,8 +103,14 @@ npm run dev       # http://localhost:3000
 - 🔍 Review screen before saving: every row shows its status (valid / missing number / duplicate) with automatic phone-format fixing (Egyptian prefixes 010/011/012/015, Arabic & Persian digits, `0020`/`+20` handled).
 - ✉️ One message template per list with a `{name}` variable + **live WhatsApp-style preview**.
 - 🟢 "Open WhatsApp" button: opens the chat for that specific proctor (mobile `wa.me` / desktop web), with opened-tracking and reset.
+- 🔗 **Per-list share link**: enable sharing to get an `/s/<token>` link to hand out. Anyone who opens it — **no account, no login** — sees names and phone numbers and taps one button to open WhatsApp with your message pre-filled. Includes an **on/off** switch, a **rotate link** button that instantly kills every copy already sent, and open-tracking for visitors who aren't signed in.
 - 📱 Mobile-first Arabic (RTL) UI, dark/light modes, installable PWA.
 - 💾 Two modes: **zero-config local demo** (JSON file) or **production Supabase** (PostgreSQL + Auth + Row-Level Security).
+
+### Share link
+- Sharing needs the share section of `supabase/schema.sql` (the `share_token` / `share_enabled` columns plus 4 functions). The file is idempotent, so re-run it on an existing database without losing data.
+- A dead, rotated, or switched-off link all return the same "link not working" page, so a link can't be probed for existence.
+- The public page is read-only: no edit, delete, or import. Open-tracking is scoped to the token's own list, so one link can't mark rows in another list.
 
 ### Quick start (demo mode)
 > Requires Node.js 22.12+. Demo records are fictional and contain no real phone numbers or invite links.

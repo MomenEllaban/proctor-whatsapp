@@ -30,10 +30,13 @@ export function WaOpenButton({
   proctor,
   template,
   onOpened,
+  trackUrl,
 }: {
   proctor: Pick<Proctor, "id" | "name" | "phone" | "opened_at">;
   template: string;
   onOpened: (id: string) => void;
+  /** Overridden by the share page, whose visitors are not signed in. */
+  trackUrl?: string;
 }) {
   const mobile = useSyncExternalStore(
     subscribeToDevice,
@@ -51,12 +54,11 @@ export function WaOpenButton({
 
   const handleClick = useCallback(() => {
     // Fire-and-forget tracking — never block the navigation with await.
-    fetch(`/api/proctors/${encodeURIComponent(proctor.id)}/open`, {
-      method: "POST",
-      keepalive: true,
-    }).catch(() => {});
+    const target =
+      trackUrl ?? `/api/proctors/${encodeURIComponent(proctor.id)}/open`;
+    fetch(target, { method: "POST", keepalive: true }).catch(() => {});
     onOpened(proctor.id);
-  }, [proctor.id, onOpened]);
+  }, [proctor.id, onOpened, trackUrl]);
 
   const label = opened ? "تم فتح WhatsApp" : "فتح WhatsApp";
   const glyph = opened

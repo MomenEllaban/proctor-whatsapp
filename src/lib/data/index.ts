@@ -1,7 +1,13 @@
 import { cookies } from "next/headers";
-import { userClient } from "@/lib/supabase/server";
+import { anonClient, userClient } from "@/lib/supabase/server";
 import { env, isAllowedDomain, isDemo } from "@/lib/env";
-import type { Proctor, ProctorList } from "@/lib/types";
+import type {
+  Proctor,
+  ProctorList,
+  ShareState,
+  SharedList,
+  SharedProctor,
+} from "@/lib/types";
 import * as demo from "./demoStore";
 
 export interface CurrentUser {
@@ -12,6 +18,13 @@ export interface CurrentUser {
 }
 
 const DEMO_COOKIE = "demo_uid";
+
+/** Share tokens are 24 hex chars; reject anything else before hitting the DB. */
+const SHARE_TOKEN_RE = /^[0-9a-f]{24}$/;
+
+export function isValidShareToken(token: string): boolean {
+  return SHARE_TOKEN_RE.test(token);
+}
 
 /* ------------------------------- session ------------------------------- */
 
@@ -178,6 +191,113 @@ export async function deleteList(
     .eq("id", listId)
     .eq("owner_id", user.id);
   return !error;
+}
+
+/* ------------------------- share (owner side) ------------------------- */
+
+export async function getShareState(
+  user: CurrentUser,
+  listId: string,
+): Promise<ShareState | null> {
+  if (isDemo) return await demo.getShare(user.id, listId);
+  const ctx = await userClient();
+  if (!ctx) return null;
+  const { data, error } = await ctx.supabase
+    .from("lists")
+    .select("share_token,share_enabled")
+    .eq("id", listId)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as ShareState) ?? null;
+}
+
+export async function setShareEnabled(
+  user: CurrentUser,
+  listId: string,
+  enabled: boolean,
+): Promise<ShareState | null> {
+  if (isDemo) return await demo.setShareEnabled(user.id, listId, enabled);
+  const ctx = await userClient();
+  if (!ctx) return null;
+  const { data, error } = await ctx.supabase
+    .from("lists")
+    .update({ share_enabled: enabled })
+    .eq("id", listId)
+    .eq("owner_id", user.id)
+    .select("share_token,share_enabled")
+    .single();
+  if (error) throw new Error(error.message);
+  return (data as ShareState) ?? null;
+}
+
+export async function rotateShareToken(
+  user: CurrentUser,
+  listId: string,
+): Promise<string | null> {
+  if (isDemo) return await demo.rotateShareToken(user.id, listId);
+  const ctx = await userClient();
+  if (!ctx) return null;
+  const { data, error } = await ctx.supabase.rpc("rotate_list_share_token", {
+    p_list_id: listId,
+  });
+  if (error) {
+    // 42501 = the RPC rejected a non-owner.
+    if (error.code === "42501") return null;
+    throw new Error(error.message);
+  }
+  return typeof data === "string" ? data : null;
+}
+
+/* ------------------------ share (public side) ------------------------- */
+
+export interface SharedSnapshot {
+  list: SharedList;
+  proctors: SharedProctor[];
+}
+
+/** Read-only snapshot for a share-link visitor. No session, no owner check. */
+export async function getSharedByToken(
+  token: string,
+): Promise<SharedSnapshot | null> {
+  if (!isValidShareToken(token)) return null;
+  if (isDemo) return await demo.getSharedByToken(token);
+  const supabase = anonClient();
+  const { data: lists, error: listError } = await supabase.rpc(
+    "get_shared_list",
+    { p_token: token },
+  );
+  if (listError) throw new Error(listError.message);
+  const row = (lists as { id: string; title: string; message_template: string }[])?.[0];
+  if (!row) return null;
+  const { data: proctors, error: proctorsError } = await supabase.rpc(
+    "get_shared_proctors",
+    { p_token: token },
+  );
+  if (proctorsError) throw new Error(proctorsError.message);
+  return {
+    list: {
+      id: row.id,
+      title: row.title,
+      message_template: row.message_template,
+    },
+    proctors: (proctors as SharedProctor[]) ?? [],
+  };
+}
+
+/** Fire-and-forget open tracking for an anonymous visitor. */
+export async function markSharedOpened(
+  token: string,
+  proctorId: string,
+): Promise<boolean> {
+  if (!isValidShareToken(token)) return false;
+  if (isDemo) return await demo.markSharedOpened(token, proctorId);
+  const { data, error } = await anonClient().rpc("record_shared_open", {
+    p_token: token,
+    p_proctor_id: proctorId,
+  });
+  if (error) throw new Error(error.message);
+  return data === true;
 }
 
 /* ------------------------------ proctors ------------------------------ */

@@ -396,7 +396,7 @@ export function ProctorsView({
   );
 }
 
-function MessagePreview({ template }: { template: string }) {
+export function MessagePreview({ template }: { template: string }) {
   const text = template ?? "";
   if (!text.includes("{name}")) {
     return <>{text || "اضبط رسالة الجروب من صفحة التعديل — سيظهر هنا معاينة مباشرة."}</>;

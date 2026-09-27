@@ -16,6 +16,28 @@ export interface ProctorList {
   default_country_code: CountryCode;
   created_at: string;
   updated_at: string;
+  share_token: string | null;
+  share_enabled: boolean;
+}
+
+/** What a share-link visitor is allowed to see. No owner, no template editing. */
+export interface SharedList {
+  id: string;
+  title: string;
+  message_template: string;
+}
+
+export interface SharedProctor {
+  id: string;
+  name: string;
+  phone: string;
+  opened_at: string | null;
+}
+
+/** Owner-facing share status for one list. */
+export interface ShareState {
+  share_token: string | null;
+  share_enabled: boolean;
 }
 
 export interface Proctor {

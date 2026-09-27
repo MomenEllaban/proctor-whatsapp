@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getList, getProctors, getSessionUser } from "@/lib/data";
 import { isDemo } from "@/lib/env";
 import { ProctorsView } from "@/components/proctors-view";
+import { SharePanel } from "@/components/share-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function ListDetailPage({
     notFound();
   }
   const proctors = await getProctors(user, id);
+  const sharePath = list.share_token ? `/s/${list.share_token}` : null;
 
   return (
     <div>
@@ -49,6 +51,14 @@ export default async function ListDetailPage({
             ✏️ تعديل الرسالة
           </Link>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SharePanel
+          listId={id}
+          path={sharePath}
+          initialEnabled={list.share_enabled}
+        />
       </div>
 
       <Suspense fallback={<p className="text-center text-muted">...</p>}>
